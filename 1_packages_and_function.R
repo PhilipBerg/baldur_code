@@ -17,7 +17,7 @@ if (!("baldur" %in% .packages(all.available = T))) {
 }
 
 p_load(fitdistrplus, vroom, magrittr, tibble, plyr, dplyr,
-       purrr, tidyr, stringr, readxl,
+       purrr, tidyr, stringr, readxl, multidplyr,
        ggplot2, future, furrr, janitor, baldur, rstan)
 if (!("limma" %in% .packages(all.available = T))) {
   BiocManager::install("limma")
@@ -28,6 +28,33 @@ if (!("limma" %in% .packages(all.available = T))) {
 
 calc_mcfadden <- function(model){
   1 - model$deviance / model$null.deviance
+}
+
+
+#### Data related functions ####
+get_human_data <- function() {
+  download.file('https://zenodo.org/record/6379087/files/Source%20Data.zip?download=1', 'human_data.zip', method = 'curl')
+  unzip('human_data.zip')
+  file.rename('Source Data/MinimumDataset/diaWorkflowResults_allDilutions.xlsx', 'diaWorkflowResults_allDilutions.xlsx')
+  file.remove('human_data.zip')
+  unlink('__MACOSX', TRUE)
+  unlink('Source Data', TRUE)
+}
+get_ramus_data <- function() {
+  readr::read_csv('https://figshare.com/ndownloader/files/35592290?private_link=28e837bfe865e8f13479', show_col_types = FALSE) %>% 
+    janitor::clean_names() %>%
+    mutate(
+      across(where(is.numeric), ~na_if(.x, 0))
+    ) %>% 
+    readr::write_csv('ramus_clean.csv')
+}
+get_data <- function() {
+  if(!file.exists('diaWorkflowResults_allDilutions.xlsx')) {
+    get_human_data()
+  }
+  if(!file.exists('ramus_clean.csv')) {
+    get_ramus_data()
+  }
 }
 
 #### Performance ####
@@ -44,6 +71,7 @@ calc_tpr_fpr <- function(alpha, hits, p, n, p_val_col){
     mutate(
       TPR = TP/p,
       FPR = FP/n,
+      NPV = TN/(TN+FN),
       precision = TP/(TP + FP),
       MCC = sqrt(precision)*sqrt(TPR)*sqrt(1-FPR)*sqrt(NPV) - sqrt(1-precision)*sqrt(1-TPR)*sqrt(FPR)*sqrt(1-NPV)
     )
@@ -198,6 +226,7 @@ baldur_wrapper <- function(data, design, contrast, gam_model, bald_model, worker
 }
 #### Figure saving wrapper ####
 ggsave_wrapper <- function(file_name, width, height = NA){
-  ggsave(paste0(file_name, '.tiff'), width = width, height = height, units = 'mm', dpi = 320, compression = 'lzw')
-  ggsave(paste0(file_name, '.pdf'), width = width, height = height, units = 'mm', dpi = 320)
+  dir.create('figures', F)
+  ggsave(paste0('figures/', file_name, '.tiff'), width = width, height = height, units = 'mm', dpi = 320, compression = 'lzw')
+  ggsave(paste0('figures/', file_name, '.pdf'), width = width, height = height, units = 'mm', dpi = 320)
 }

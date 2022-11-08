@@ -9,22 +9,17 @@ ups_prnn <- ups %>%
   drop_na() %>%
   psrn(load_info = F, id_col = 'identifier')
 
+# If needed, download Ramus or Human DS
+get_data()
+
 # Ramus
-ramus_prnn <- readr::read_csv('https://figshare.com/ndownloader/files/35592290?private_link=28e837bfe865e8f13479') %>%
-  janitor::clean_names() %>%
-  mutate(
-    across(where(is.numeric), ~na_if(.x, 0))
-  ) %>%
+ramus_prnn <- readr::read_csv('ramus_clean.csv') %>%
   drop_na() %>%
   rename_with(~paste0('condi', rep(1:9, each = 3), '_', rep(1:3, lenght.out = 9*3)), where(is.numeric)) %>%
   psrn(load_info = F, id_col = 'identifier')
 
 # Human
-if(!file.exists('Source Data/MinimumDataset/diaWorkflowResults_allDilutions.xlsx')){
-  download.file('https://zenodo.org/record/6379087/files/Source%20Data.zip?download=1', 'human_data.zip', method = 'curl')
-  unzip('human_data.zip')
-}
-human_prnn <- readxl::read_excel('Source Data/MinimumDataset/diaWorkflowResults_allDilutions.xlsx', na = "NA") %>%
+human_prnn <- readxl::read_excel('diaWorkflowResults_allDilutions.xlsx', na = "NA") %>%
   select(-2:-24) %>%
   rename_with(
     ~str_replace_all(.,
@@ -59,4 +54,10 @@ ramus_str_replace <- c(
   'condi7' = 'fmol12.5',
   'condi8' = 'fmol25',
   'condi9' = 'fmol50'
+)
+
+human_str_replace <- c(
+  'spike_prop_6' = '1:6',
+  'spike_prop_12' = '1:12',
+  'spike_prop_25' = '1:25'
 )

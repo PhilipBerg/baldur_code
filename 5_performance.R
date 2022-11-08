@@ -169,7 +169,10 @@ ups_auroc <- ups_roc %>%
 # Ramus
 ramus_roc <- ls(pattern = 'roc_ramus.*') %>%
   map(get) %>%
-  bind_rows()
+  bind_rows() %>%
+  mutate(
+    comparison = str_replace_all(comparison, ramus_str_replace)
+  )
 
 ramus_auroc <- ramus_roc %>%
   group_by(comparison, method) %>%
@@ -185,7 +188,10 @@ ramus_auroc <- ramus_roc %>%
 # Human
 human_roc <- ls(pattern = 'roc_human.*') %>%
   map(get) %>%
-  bind_rows()
+  bind_rows() %>%
+  mutate(
+    comparison = str_replace_all(comparison, human_str_replace)
+  )
 
 human_auroc <- human_roc %>%
   group_by(comparison, method) %>%

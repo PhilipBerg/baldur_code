@@ -1,4 +1,4 @@
-#### Plotting trends ####
+#### Plot trends ####
 p_y <- plot_gamma(yeast_prnn) +
   ggtitle(NULL) +
   theme(
@@ -18,7 +18,7 @@ p_h <- plot_gamma(human_prnn) +
   )
 
 cowplot::plot_grid(p_y, p_u, p_r, p_h, nrow = 2, labels = 'AUTO', align = 'hv')
-ggsave('single_trends.pdf', width = full_page, height = full_page, units = uni, dpi = dpi)
+ggsave_wrapper('single_trends', width = full_page, height = full_page)
 
 c_y <- plot_gamma_partition(yeast_prnn, yeast_design) +
   ggtitle(NULL) +
@@ -44,20 +44,18 @@ c_h <- plot_gamma_partition(human_prnn, human_design, formula = sd ~ mean*c) +
   )
 
 cowplot::plot_grid(c_y, c_u, c_r, c_h, nrow = 2, labels = 'AUTO', align = 'hv')
-ggsave('partitioned_trends.pdf', width = full_page, height = full_page, units = uni, dpi = dpi)
+ggsave_wrapper('partitioned_trends', width = full_page, height = full_page)
 
 
 #### Plot performance ####
 color_scheeme <- set_names(viridisLite::turbo(4, end = .9), c("Mix-Baldur", 'Single-Baldur', 'Limma-Trend', 't-test'))
-load('performance.RData')
 # yeast
-yr <- yeast_roc %>%
-  filter(between(alpha, 0, 1)) %>%
+yeast_roc %>%
   group_by(comparison, method) %>%
   arrange(alpha) %>%
   ggplot(aes(FPR, TPR, color = method)) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  geom_path(size = 1/4) +
+  geom_path(linewidth = 1/4) +
   theme_classic() +
   geom_text(data = yeast_auroc,
             aes(FPR, TPR, label = round(auROC, 3)),
@@ -69,57 +67,62 @@ yr <- yeast_roc %>%
                      guide = guide_legend(
                        ncol = 1,
                        title.position = "top",
-                       title.hjust = .5,
-                       override.aes = list(size = 1)
+                       #title.hjust = .5,
+                       override.aes = list(linewidth = 1)
                      )
   ) +
-  scale_y_continuous(breaks = seq(0,1,.1)) +
-  scale_x_continuous(labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_y_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   theme(
-    legend.position = "none", #c(.775, .4),
-    plot.margin = margin(l = 13.5),
+    legend.position = c(.775, .4),
+    plot.margin = margin(),
     legend.direction = 'horizontal',
     legend.background = element_blank(),
     legend.key.size = unit(.2, "cm"),
-    legend.spacing.y = unit(.01, 'cm'),
-    axis.title.y = element_blank()
+    legend.spacing.y = unit(.01, 'cm')
   ) +
   labs(
-    x = 'False Positive Rate',
-    y = ''
+    y = 'True Positive Rate',
+    x = 'False Positive Rate'
   )
+ggsave_wrapper('yeast_roc', half_page, half_page)
 
 yeast_roc %>%
+  filter(between(alpha, 0, 1)) %>%
   group_by(comparison, method) %>%
   arrange(alpha) %>%
   ggplot(aes(alpha, MCC, color = method)) +
   geom_vline(xintercept = .05, linetype = 'dashed') +
-  geom_path(size = 1/4) +
+  geom_path(linewidth = 1/4) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
                      guide = guide_legend(
                        ncol = 1,
                        title.position = "top",
-                       title.hjust = .5,
-                       override.aes = list(size = 1)
+                       #title.hjust = .5,
+                       title.vjust = -2.5,
+                       override.aes = list(linewidth = 1)
                      )
   ) +
-  scale_y_continuous(breaks = seq(0,.6,.1)) +
+  scale_y_continuous(breaks = seq(0,.6,.2)) +
+  scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   theme(
     legend.position = c(.775, .85),
     plot.margin = margin(),
     legend.direction = 'horizontal',
     legend.background = element_blank(),
-    legend.key.size = unit(.25, "cm")
+    legend.key.size = unit(.25, "cm"),
+    legend.spacing = unit(0, 'mm')
   ) +
   labs(
     x = expression(alpha),
     y = 'Matthews Correlation Coefficient'
   )
-ggsave_wrapper('yeast_mcc2', width = single, height = single)
+ggsave_wrapper('yeast_mcc', width = half_page, height = half_page)
 
 yeast_roc %>%
+  filter(between(alpha, 0, 1)) %>%
   pivot_longer(c(TPR, FPR, precision)) %>%
   mutate(
     intercept = if_else(name == 'precision', 280/1608, 0),
@@ -133,18 +136,20 @@ yeast_roc %>%
   ggplot(aes(alpha, value, color = method)) +
   geom_vline(xintercept = .05, linetype = 'dashed', color = 'red') +
   geom_abline(aes(intercept = intercept, slope = slope), linetype = 'dashed') +
-  geom_path(size = 1/4) +
+  geom_path(linewidth = 1/4) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
                      guide = guide_legend(
                        ncol = 1,
                        title.position = "top",
-                       title.hjust = .5,
-                       override.aes = list(size = 1)
+                       #title.hjust = .5,
+                       title.vjust = -2.5,
+                       override.aes = list(linewidth = 1)
                      )
   ) +
-  scale_y_continuous(breaks = seq(0,1,.1)) +
+  scale_y_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   theme(
     legend.position = c(.897, .17),
     plot.margin = margin(),
@@ -157,17 +162,16 @@ yeast_roc %>%
     y = 'True-, False- Positive Rate, Precision'
   ) +
   facet_grid(.~name)
-ggsave_wrapper('yeast_decomposed2', width = double, height = single)
+ggsave_wrapper('yeast_decomposed', width = full_page, height = half_page)
 
 # UPS
 ur <- ups_roc %>%
   arrange(alpha) %>%
   ggplot(aes(FPR, TPR, color = method)) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  geom_path(size = 1/4) +
-  #lims(x = c(0,1)) +
-  scale_y_continuous(breaks = seq(0,1,.1), limits = c(0,1)) +
-  scale_x_continuous(labels = function(x) ifelse(x == 0, "0", x)) +
+  geom_path(linewidth = 1/4) +
+  scale_y_continuous(breaks = seq(0,1,.2), limits = c(0,1)) +
+  scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   theme_classic() +
   geom_text(data = ups_auroc,
             aes(FPR, TPR, label = round(auROC, 3)),
@@ -179,11 +183,15 @@ ur <- ups_roc %>%
                      guide = guide_legend(
                        ncol = 1,
                        title.position = "top",
-                       title.hjust = .5,
-                       override.aes = list(size = 1)
+                       #title.hjust = .5,
+                       override.aes = list(linewidth = 1)
                      )
   ) +
-  facet_wrap(comparison~., ncol = 1) +
+  facet_wrap(
+    factor(
+      comparison,
+      levels = paste0('fmol', c(25, 50, 25), ' vs ', 'fmol', c(100, 100, 50))
+    )~., ncol = 1) +
   theme(
     legend.position = c(.8, .85),
     plot.margin = margin(),
@@ -194,49 +202,49 @@ ur <- ups_roc %>%
     legend.key.size = unit(.2, "cm"),
     legend.spacing.y = unit(.01, 'cm'),
     legend.text = element_text(size = 7),
-    axis.title.y=element_text(hjust = .25)
-  ) +
-  labs(
-    x = '',
-    y = 'True Positive Rate'
+    axis.title = element_blank()
   )
-cowplot::plot_grid(ur, yr, labels = 'AUTO', rel_heights = c(3, 1.02), hjust = c(-1.5, -1.5), vjust = c(1.1, 0), ncol = 1)
-ggsave_wrapper('ups_yeast_roc2', width = single*.95, height = single*2)
+#cowplot::plot_grid(ur, yr, labels = 'AUTO', rel_heights = c(3, 1.02), hjust = c(-1.5, -1.5), vjust = c(1.1, 0), ncol = 1)
+#ggsave_wrapper('ups_yeast_roc', width = half_page, height = half_page*4)
 
 ups_roc %>%
+  filter(between(alpha, 0, 1)) %>%
   group_by(comparison, method) %>%
   arrange(alpha) %>%
   ggplot(aes(alpha, MCC, color = method)) +
   geom_vline(xintercept = .05, linetype = 'dashed') +
-  geom_path(size = 1/4) +
+  geom_path(linewidth = 1/4) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
                      guide = guide_legend(
                        ncol = 1,
                        title.position = "top",
-                       title.hjust = .5,
-                       override.aes = list(size = 1)
+                       #title.hjust = .5,
+                       override.aes = list(linewidth = 1)
                      )
   ) +
-  scale_y_continuous(breaks = seq(0,1,.1)) +
+  scale_y_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   theme(
     legend.position = c(.915, .855),
     plot.margin = margin(),
     legend.direction = 'horizontal',
     legend.background = element_blank(),
-    legend.key.size = unit(.25, "cm"),
-    legend.text = element_text(size = 7)
+    legend.text = element_text(size = 7),
+    legend.key.size = unit(.2, "cm"),
+    legend.spacing.y = unit(.01, 'cm')
   ) +
   facet_grid(.~comparison) +
   labs(
     x = expression(alpha),
     y = 'Matthews Correlation Coefficient'
   )
-ggsave_wrapper('ups_mcc2', width = double, height = single)
+ggsave_wrapper('ups_mcc', width = full_page, height = half_page)
 
 
 ups_roc %>%
+  filter(between(alpha, 0, 1)) %>%
   pivot_longer(c(TPR, FPR, precision)) %>%
   mutate(
     intercept = if_else(name == 'precision', 345/10123, 0),
@@ -250,55 +258,57 @@ ups_roc %>%
   ggplot(aes(alpha, value, color = method)) +
   geom_vline(xintercept = .05, linetype = 'dashed', color = 'red') +
   geom_abline(aes(intercept = intercept, slope = slope), linetype = 'dashed') +
-  geom_path(size = 1/4) +
+  geom_path(linewidth = 1/4) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
                      guide = guide_legend(
                        ncol = 1,
                        title.position = "top",
-                       title.hjust = .5,
-                       override.aes = list(size = 1)
+                       #title.hjust = .5,
+                       override.aes = list(linewidth = 1.5)
                      )
   ) +
-  lims(x = c(0,1.02)) +
-  scale_y_continuous(breaks = seq(0,1,.1), limits = c(0,1.02)) +
+  scale_y_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   theme(
     legend.position = c(.89, .75),
     plot.margin = margin(),
     legend.direction = 'horizontal',
     legend.background = element_blank(),
-    legend.key.size = unit(.25, "cm")
+    legend.key.size = unit(.2, "cm"),
+    legend.spacing.y = unit(.01, 'cm')
   ) +
   labs(
     x = expression(alpha),
     y = 'True-, False- Positive Rate, Precision'
   ) +
   facet_grid(comparison~name)
-ggsave_wrapper('ups_decomposed2', width = double, height = double)
+ggsave_wrapper('ups_decomposed', width = full_page, height = full_page)
 
 # Ramus
-ramus_roc %>%
+ramus_roc %>% 
+  filter(between(alpha, 0, 1)) %>%
   arrange(alpha) %>%
   ggplot(aes(FPR, TPR, color = method)) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  geom_path(size = 1/4) +
-  scale_x_continuous(breaks = seq(0,1,.2), labels = seq(0,1,.2), limits = c(0,1)) +
-  scale_y_continuous(breaks = seq(0,1,.2), limits = c(0,1)) +
+  geom_path(linewidth = 1/4) +
+  scale_y_continuous(breaks = seq(0,1,.5), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.5), labels = function(x) ifelse(x == 0, "0", x)) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
                      guide = guide_legend(
-                       ncol = 3,
+                       nrow = 1,
                        title.hjust = .5,
-                       override.aes = list(size = 1)
+                       override.aes = list(linewidth = 1)
                      )
   ) +
-  geom_text(data = ramus_auroc,
-            aes(FPR, TPR, label = round(auROC, 3)),
-            size = 3,
-            show.legend = F
-  ) +
+  # geom_text(data = ramus_auroc,
+  #           aes(FPR, TPR, label = round(auROC, 3)),
+  #           size = 3,
+  #           show.legend = F
+  # ) +
   facet_wrap(.~comparison) +
   theme(
     legend.position = 'bottom',
@@ -307,28 +317,64 @@ ramus_roc %>%
     legend.background = element_blank(),
     legend.key.size = unit(.25, "cm"),
     legend.text = element_text(size = 7),
-    legend.margin=margin(0,0,.01,0)
+    legend.margin=margin(0,0,.01,0),
+    strip.text = element_text(size = 7)
   ) +
   labs(
     x = 'False Positive Rate',
     y = 'True Positive Rate'
   )
-ggsave_wrapper('ramus_roc', width = double, height = double)
+ggsave_wrapper('ramus_roc', width = full_page, height = full_page)
+
+ramus_roc %>%
+  filter(between(alpha, 0, 1)) %>%
+  group_by(comparison, method) %>%
+  arrange(alpha) %>%
+  ggplot(aes(alpha, MCC, color = method)) +
+  geom_vline(xintercept = .05, linetype = 'dashed') +
+  geom_path(linewidth = 1/4) +
+  theme_classic() +
+  scale_color_manual('Method',
+                     values = color_scheeme,
+                     guide = guide_legend(
+                       ncol = 1,
+                       title.position = "top",
+                       title.hjust = .5,
+                       override.aes = list(linewidth = 1)
+                     )
+  ) +
+  scale_y_continuous(breaks = seq(0,1,.25), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.25), labels = function(x) ifelse(x == 0, "0", x)) +
+  theme(
+    legend.position = c(.915, .855),
+    plot.margin = margin(),
+    legend.direction = 'horizontal',
+    legend.background = element_blank(),
+    legend.key.size = unit(.25, "cm"),
+    legend.text = element_text(size = 7)
+  ) +
+  facet_wrap(.~comparison) +
+  labs(
+    x = expression(alpha),
+    y = 'Matthews Correlation Coefficient'
+  )
+ggsave_wrapper('ramus_mcc', width = full_page, height = full_page)
 
 ramus_auroc %>%
   mutate(
     method = factor(method, names(color_scheeme))
   ) %>%
-  ggplot(aes(comparison, auROC, fill = method)) +
-  geom_col(position = 'dodge') +
+  ggplot(aes(comparison, auROC, fill = method, label = round(auROC, 2))) +
+  geom_col(aes(comparison, auROC, fill = method), position = 'dodge') +
+  geom_text(aes(comparison, auROC - .06, label = round(auROC, 2)), color = 'white', position = position_dodge(width = .9), size = 2) +
   theme_classic() +
-  scale_y_continuous(breaks = seq(0,1,.2), labels = seq(0,1,.2), limits = c(0,1)) +
+  scale_y_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   scale_fill_manual('Method',
                     values = color_scheeme,
                     guide = guide_legend(
-                      ncol = 3,
+                      nrow = 1,
                       title.hjust = .5,
-                      override.aes = list(size = 1)
+                      override.aes = list(linewidth = 1)
                     )
   ) +
   facet_wrap(.~comparison, scales = 'free_x') +
@@ -342,31 +388,28 @@ ramus_auroc %>%
     axis.title.x = element_blank(),
     axis.ticks.x = element_blank(),
     legend.margin=margin(0,0,0.01,0),
-    panel.grid.major.y =  element_line('grey', .1)
+    panel.grid.major.y =  element_line('grey', .1),
+    strip.text = element_text(size = 7)
   )
-ggsave_wrapper('ramus_auroc', width = double, height = double)
+ggsave_wrapper('ramus_auroc', width = full_page, height = full_page)
 
 ramus_roc %>%
+  filter(between(alpha, 0, 1)) %>%
   arrange(alpha) %>%
   filter(between(alpha, 0, 1)) %>%
   ggplot(aes(alpha, TPR, color = method)) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  geom_path(size = 1/4) +
-  scale_x_continuous(breaks = seq(0,1,.2), labels = seq(0,1,.2), limits = c(0,1)) +
-  scale_y_continuous(breaks = seq(0,1,.2), limits = c(0,1)) +
+  geom_path(linewidth = 1/4) +
+  scale_y_continuous(breaks = seq(0,1,.25), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.25), labels = function(x) ifelse(x == 0, "0", x)) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
                      guide = guide_legend(
                        ncol = 3,
                        title.hjust = .5,
-                       override.aes = list(size = 1)
+                       override.aes = list(linewidth = 1)
                      )
-  ) +
-  geom_text(data = ramus_auroc,
-            aes(FPR, TPR, label = round(auROC, 3)),
-            size = 3,
-            show.legend = F
   ) +
   facet_wrap(.~comparison) +
   theme(
@@ -382,22 +425,23 @@ ramus_roc %>%
     x = expression(alpha),
     y = 'True Positive Rate'
   )
+ggsave_wrapper('ramus_tpr', width = full_page, height = full_page)
 
 ramus_roc %>%
   arrange(alpha) %>%
   filter(between(alpha, 0, 1)) %>%
   ggplot(aes(alpha, FPR, color = method)) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  geom_path(size = 1/4) +
-  scale_x_continuous(breaks = seq(0,1,.2), labels = seq(0,1,.2), limits = c(0,1)) +
-  scale_y_continuous(breaks = seq(0,1,.2), limits = c(0,1)) +
+  geom_path(linewidth = 1/4) +
+  scale_y_continuous(breaks = seq(0,1,.25), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.25), labels = function(x) ifelse(x == 0, "0", x)) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
                      guide = guide_legend(
                        ncol = 3,
                        title.hjust = .5,
-                       override.aes = list(size = 1)
+                       override.aes = list(linewidth = 1)
                      )
   ) +
   facet_wrap(.~comparison) +
@@ -412,24 +456,26 @@ ramus_roc %>%
   ) +
   labs(
     x = expression(alpha),
-    y = 'True Positive Rate'
+    y = 'False Positive Rate'
   )
+ggsave_wrapper('ramus_fpr', width = full_page, height = full_page)
 
 # Human
-human_roc %>%
+hr <- human_roc %>%
   arrange(alpha) %>%
+  filter(between(alpha, 0, 1)) %>%
   ggplot(aes(FPR, TPR, color = method)) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
-  geom_path(size = 1/4) +
-  scale_x_continuous(breaks = seq(0,1,.2), labels = seq(0,1,.2), limits = c(0,1)) +
-  scale_y_continuous(breaks = seq(0,1,.2), limits = c(0,1)) +
+  geom_path(linewidth = 1/4) +
+  scale_y_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
                      guide = guide_legend(
                        ncol = 3,
                        title.hjust = .5,
-                       override.aes = list(size = 1)
+                       override.aes = list(linewidth = 1)
                      )
   ) +
   geom_text(data = human_auroc,
@@ -437,22 +483,65 @@ human_roc %>%
             size = 3,
             show.legend = F
   ) +
-  facet_wrap(.~comparison) +
+  facet_wrap(factor(
+    comparison,
+    levels = paste0('1:', c(25, 12, 25), ' vs ', '1:', c(6, 6, 12))
+  )~., nrow = 3) +
   theme(
-    legend.position = 'bottom',
+    legend.position = 'none',
     plot.margin = margin(),
     legend.direction = 'horizontal',
     legend.background = element_blank(),
     legend.key.size = unit(.25, "cm"),
     legend.text = element_text(size = 7),
-    legend.margin=margin(0,0,.01,0)
-  ) +
-  labs(
-    x = 'False Positive Rate',
-    y = 'True Positive Rate'
+    legend.margin=margin(0,0,.01,0),
+    axis.title = element_blank()
   )
 
+cowplot::plot_grid(ur, hr, labels = 'AUTO', ncol = 2) + #, hjust = c(-1.9, -1.8), rel_widths = c(1, 1)) +
+  theme(
+    plot.margin = margin(0, 0, 15, 15)
+  ) +
+  cowplot::draw_label("False Positive Rate", x = 0.5, y = 0,   angle = 0,  vjust = 1, hjust = 0.45) +
+  cowplot::draw_label("True Positive Rate",  x = 0,   y = 0.5, angle = 90, vjust = -.35, hjust = .52)
+ggsave_wrapper('ups_human_roc', width = full_page, height = full_page)
+
 human_roc %>%
+  filter(between(alpha, 0, 1)) %>%
+  group_by(comparison, method) %>%
+  arrange(alpha) %>%
+  ggplot(aes(alpha, MCC, color = method)) +
+  geom_vline(xintercept = .05, linetype = 'dashed') +
+  geom_path(linewidth = 1/4) +
+  theme_classic() +
+  scale_color_manual('Method',
+                     values = color_scheeme,
+                     guide = guide_legend(
+                       ncol = 1,
+                       title.position = "top",
+                       title.hjust = .5,
+                       override.aes = list(linewidth = 1)
+                     )
+  ) +
+  scale_y_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  theme(
+    legend.position = c(.915, .855),
+    plot.margin = margin(),
+    legend.direction = 'horizontal',
+    legend.background = element_blank(),
+    legend.key.size = unit(.25, "cm"),
+    legend.text = element_text(size = 7)
+  ) +
+  facet_grid(.~comparison) +
+  labs(
+    x = expression(alpha),
+    y = 'Matthews Correlation Coefficient'
+  )
+ggsave_wrapper('human_mcc', width = full_page, height = half_page)
+
+human_roc %>%
+  filter(between(alpha, 0, 1)) %>%
   pivot_longer(c(TPR, FPR, precision)) %>%
   mutate(
     intercept = if_else(name == 'precision', 345/10123, 0),
@@ -466,7 +555,7 @@ human_roc %>%
   ggplot(aes(alpha, value, color = method)) +
   geom_vline(xintercept = .05, linetype = 'dashed', color = 'red') +
   geom_abline(aes(intercept = intercept, slope = slope), linetype = 'dashed') +
-  geom_path(size = 1/4) +
+  geom_path(linewidth = 1/4) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
@@ -474,11 +563,11 @@ human_roc %>%
                        ncol = 1,
                        title.position = "top",
                        title.hjust = .5,
-                       override.aes = list(size = 1)
+                       override.aes = list(linewidth = 1)
                      )
   ) +
-  lims(x = c(0,1.02)) +
-  scale_y_continuous(breaks = seq(0,1,.1), limits = c(0,1.02)) +
+  scale_y_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   theme(
     legend.position = c(.89, .75),
     plot.margin = margin(),
@@ -491,3 +580,4 @@ human_roc %>%
     y = 'True-, False- Positive Rate, Precision'
   ) +
   facet_grid(comparison~name)
+ggsave_wrapper('human_decomp', width = full_page, height = half_page)
