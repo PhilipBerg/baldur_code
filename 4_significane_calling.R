@@ -191,7 +191,7 @@ human_mix_gam <- human_prnn %>%
 human_contrast <- combn(colnames(human_design), 2) %>%
   t() %>%
   apply(1, str_flatten, '-') %>%
-  limma::makeContrasts(contrasts = ., levels = ups_design)
+  limma::makeContrasts(contrasts = ., levels = human_design)
 
 human_trend <- human_prnn %>%
   select(-mean:-c) %>%
