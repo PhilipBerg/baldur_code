@@ -20,23 +20,21 @@ p_h <- plot_gamma(human_prnn) +
 cowplot::plot_grid(p_y, p_u, p_r, p_h, nrow = 2, labels = 'AUTO', align = 'hv')
 ggsave_wrapper('single_trends', width = full_page, height = full_page)
 
-c_y <- plot_gamma_partition(yeast_prnn, yeast_design) +
-  ggtitle(NULL) +
+c_y <- plot_regression(yeast_prnn, reg, mixed = FALSE) +
   theme(
     legend.position = "none",
     axis.title.x = element_blank()
   )
-c_u <- plot_gamma_partition(ups_prnn, ups_design) +
-  ggtitle(NULL) +
+c_u <- plot_regression(ups_prnn, reg_ups, mixed = FALSE) +
   theme(
     axis.title = element_blank()
   )
-c_r <- plot_gamma_partition(ramus_prnn, ramus_design) +
+c_r <- plot_regression(ramus_prnn, reg_ramus, mixed = FALSE) +
   ggtitle(NULL) +
   theme(
     legend.position = "none"
   )
-c_h <- plot_gamma_partition(human_prnn, human_design, formula = sd ~ mean*c) +
+c_h <- plot_regression(human_prnn, reg_human, mixed = FALSE) +
   ggtitle(NULL) +
   theme(
     legend.position = "none",
@@ -44,15 +42,24 @@ c_h <- plot_gamma_partition(human_prnn, human_design, formula = sd ~ mean*c) +
   )
 
 cowplot::plot_grid(c_y, c_u, c_r, c_h, nrow = 2, labels = 'AUTO', align = 'hv')
-ggsave_wrapper('partitioned_trends', width = full_page, height = full_page)
+ggsave_wrapper('partitioned_trends_mixed', width = full_page, height = full_page)
 
 
 #### Plot performance ####
-color_scheeme <- set_names(viridisLite::turbo(4, end = .9), c("Mix-Baldur", 'Single-Baldur', 'Limma-Trend', 't-test'))
+color_scheeme <- set_names(viridisLite::turbo(4, end = .9), c("LGMR-Baldur", 'GR-Baldur',
+                                                              'Limma-Trend', 't-test'))
 # yeast
 yeast_roc %>%
   group_by(comparison, method) %>%
   arrange(alpha) %>%
+  mutate(
+    shape = case_when(
+      (alpha - .05)^2 == min((alpha - .05)^2) ~ '0.05',
+      (alpha - .01)^2 == min((alpha - .01)^2) ~ '0.01',
+      (alpha - .001)^2 == min((alpha - .001)^2) ~ '0.001',
+      T ~ 'F'
+    )
+  ) %>%
   ggplot(aes(FPR, TPR, color = method)) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
   geom_path(linewidth = 1/4) +
@@ -61,6 +68,10 @@ yeast_roc %>%
             aes(FPR, TPR, label = round(auROC, 3)),
             size = 3,
             show.legend = F
+  ) +
+  geom_point(
+    data = \(x) subset(x, shape != 'F'),
+    aes(FPR, TPR, color = method, shape = shape)
   ) +
   scale_color_manual('Method',
                      values = color_scheeme,
@@ -83,7 +94,8 @@ yeast_roc %>%
   ) +
   labs(
     y = 'True Positive Rate',
-    x = 'False Positive Rate'
+    x = 'False Positive Rate',
+    shape = expression(alpha~phantom())
   )
 ggsave_wrapper('yeast_roc', half_page, half_page)
 
@@ -125,7 +137,7 @@ yeast_roc %>%
   filter(between(alpha, 0, 1)) %>%
   pivot_longer(c(TPR, FPR, precision)) %>%
   mutate(
-    intercept = if_else(name == 'precision', 280/1608, 0),
+    intercept = if_else(name == 'precision', sum(str_detect(yeast_prnn$identifier, 'YEAST'))/nrow(yeast_prnn), 0),
     slope = if_else(name == 'precision', 0, 1),
     name = str_replace(name, 'pre', 'Pre'),
     name = str_replace(name, 'FPR', 'False Positive Rate'),
@@ -164,9 +176,39 @@ yeast_roc %>%
   facet_grid(.~name)
 ggsave_wrapper('yeast_decomposed', width = full_page, height = half_page)
 
+yeast_roc %>%
+  group_by(method) %>%
+  filter(min((alpha - .05)^2) == (alpha - .05)^2) %>%
+  pivot_longer(c(TP, FP)) %>%
+  mutate(
+    name = str_replace_all(name, c('T' = 'True ', 'F' = 'False ', 'P' = 'Positive'))
+  ) %>%
+  ggplot(aes(method, value, fill = name, label = value)) +
+  geom_col(position = position_dodge(1)) +
+  geom_text(position = position_dodge(1), vjust = 1) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0,1)) +
+  labs(
+    y = 'Count', x = 'Method', fill = 'Category'
+  ) +
+  theme(
+    legend.position = c(0.2,.8),
+    axis.text.x = element_text(size = 7)
+  )
+ggsave_wrapper('bar_alpha_05_yeast', width = half_page, height = half_page)
+
 # UPS
 ur <- ups_roc %>%
+  group_by(comparison, method) %>%
   arrange(alpha) %>%
+  mutate(
+    shape = case_when(
+      (alpha - .05)^2 == min((alpha - .05)^2) ~ '0.05',
+      (alpha - .01)^2 == min((alpha - .01)^2) ~ '0.01',
+      (alpha - .001)^2 == min((alpha - .001)^2) ~ '0.001',
+      T ~ 'F'
+    )
+  ) %>%
   ggplot(aes(FPR, TPR, color = method)) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
   geom_path(linewidth = 1/4) +
@@ -177,6 +219,10 @@ ur <- ups_roc %>%
             aes(FPR, TPR, label = round(auROC, 3)),
             size = 3,
             show.legend = F
+  ) +
+  geom_point(
+    data = \(x) subset(x, shape != 'F'),
+    aes(FPR, TPR, color = method, shape = shape)
   ) +
   scale_color_manual('Method',
                      values = color_scheeme,
@@ -203,6 +249,11 @@ ur <- ups_roc %>%
     legend.spacing.y = unit(.01, 'cm'),
     legend.text = element_text(size = 7),
     axis.title = element_blank()
+  ) +
+  labs(
+    y = 'True Positive Rate',
+    x = 'False Positive Rate',
+    shape = expression(alpha~phantom())
   )
 #cowplot::plot_grid(ur, yr, labels = 'AUTO', rel_heights = c(3, 1.02), hjust = c(-1.5, -1.5), vjust = c(1.1, 0), ncol = 1)
 #ggsave_wrapper('ups_yeast_roc', width = half_page, height = half_page*4)
@@ -286,13 +337,44 @@ ups_roc %>%
   facet_grid(comparison~name)
 ggsave_wrapper('ups_decomposed', width = full_page, height = full_page)
 
+ups_roc %>%
+  group_by(method, comparison) %>%
+  filter(min((alpha - .05)^2) == (alpha - .05)^2) %>%
+  pivot_longer(c(TP, FP)) %>%
+  ggplot(aes(method, value, fill = name, label = value)) +
+  geom_col(position = position_dodge(1)) +
+  geom_text(position = position_dodge(1), vjust = .5) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0,20)) +
+  labs(
+    y = 'Count', x = 'Method', fill = 'Category'
+  ) +
+  theme(
+    legend.position = c(0.1,.9),
+    axis.text.x = element_text(size = 7)
+  ) +
+  facet_grid(comparison~.)
+ggsave_wrapper('bar_alpha_05_ups', width = half_page, height = full_page)
+
 # Ramus
-ramus_roc %>% 
-  filter(between(alpha, 0, 1)) %>%
+ramus_roc %>%
+  group_by(comparison, method) %>%
   arrange(alpha) %>%
+  mutate(
+    shape = case_when(
+      (alpha - .05)^2 == min((alpha - .05)^2) ~ '0.05',
+      (alpha - .01)^2 == min((alpha - .01)^2) ~ '0.01',
+      (alpha - .001)^2 == min((alpha - .001)^2) ~ '0.001',
+      T ~ 'F'
+    )
+  ) %>%
   ggplot(aes(FPR, TPR, color = method)) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
   geom_path(linewidth = 1/4) +
+  geom_point(
+    data = \(x) subset(x, shape != 'F'),
+    aes(FPR, TPR, color = method, shape = shape)
+  ) +
   scale_y_continuous(breaks = seq(0,1,.5), labels = function(x) ifelse(x == 0, "0", x)) +
   scale_x_continuous(breaks = seq(0,1,.5), labels = function(x) ifelse(x == 0, "0", x)) +
   theme_classic() +
@@ -321,8 +403,9 @@ ramus_roc %>%
     strip.text = element_text(size = 7)
   ) +
   labs(
+    y = 'True Positive Rate',
     x = 'False Positive Rate',
-    y = 'True Positive Rate'
+    shape = expression(alpha~phantom())
   )
 ggsave_wrapper('ramus_roc', width = full_page, height = full_page)
 
@@ -460,13 +543,45 @@ ramus_roc %>%
   )
 ggsave_wrapper('ramus_fpr', width = full_page, height = full_page)
 
+ramus_roc %>%
+  group_by(method, comparison) %>%
+  filter(min((alpha - .05)^2) == (alpha - .05)^2) %>%
+  pivot_longer(c(TP, FP)) %>%
+  ggplot(aes(method, value, fill = name, label = value)) +
+  geom_col(position = position_dodge(1)) +
+  geom_text(position = position_dodge(1), vjust = .5) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0,20)) +
+  labs(
+    y = 'Count', x = 'Method', fill = 'Category'
+  ) +
+  theme(
+    legend.position = 'bottom',
+    axis.text.x = element_text(size = 7)
+  ) +
+  facet_wrap(comparison~.)
+ggsave_wrapper('bar_alpha_05_ramus', width = full_page, height = full_page)
+
 # Human
 hr <- human_roc %>%
+  group_by(comparison, method) %>%
   arrange(alpha) %>%
+  mutate(
+    shape = case_when(
+      (alpha - .05)^2 == min((alpha - .05)^2) ~ '0.05',
+      (alpha - .01)^2 == min((alpha - .01)^2) ~ '0.01',
+      (alpha - .001)^2 == min((alpha - .001)^2) ~ '0.001',
+      T ~ 'F'
+    )
+  ) %>%
   filter(between(alpha, 0, 1)) %>%
   ggplot(aes(FPR, TPR, color = method)) +
   geom_abline(intercept = 0, slope = 1, linetype = 'dashed') +
   geom_path(linewidth = 1/4) +
+  geom_point(
+    data = \(x) subset(x, shape != 'F'),
+    aes(FPR, TPR, color = method, shape = shape)
+  ) +
   scale_y_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
   theme_classic() +
@@ -496,6 +611,11 @@ hr <- human_roc %>%
     legend.text = element_text(size = 7),
     legend.margin=margin(0,0,.01,0),
     axis.title = element_blank()
+  ) +
+  labs(
+    y = 'True Positive Rate',
+    x = 'False Positive Rate',
+    shape = expression(alpha~phantom())
   )
 
 cowplot::plot_grid(ur, hr, labels = 'AUTO', ncol = 2) + #, hjust = c(-1.9, -1.8), rel_widths = c(1, 1)) +
@@ -581,3 +701,22 @@ human_roc %>%
   ) +
   facet_grid(comparison~name)
 ggsave_wrapper('human_decomp', width = full_page, height = half_page)
+
+human_roc %>%
+  group_by(method, comparison) %>%
+  filter(min((alpha - .05)^2) == (alpha - .05)^2) %>%
+  pivot_longer(c(TP, FP)) %>%
+  ggplot(aes(method, value, fill = name, label = value)) +
+  geom_col(position = position_dodge(1)) +
+  geom_text(position = position_dodge(1), vjust = .5) +
+  theme_classic() +
+  scale_y_continuous(expand = c(0,20)) +
+  labs(
+    y = 'Count', x = 'Method', fill = 'Category'
+  ) +
+  theme(
+    legend.position = c(0.1,.9),
+    axis.text.x = element_text(size = 7)
+  ) +
+  facet_grid(comparison~.)
+ggsave_wrapper('bar_alpha_05_human', width = half_page, height = full_page)

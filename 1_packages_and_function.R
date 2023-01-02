@@ -30,6 +30,251 @@ calc_mcfadden <- function(model){
   1 - model$deviance / model$null.deviance
 }
 
+load_data <- function(data) {
+  if (data == 'yeast') {
+    if (file.exists('yeast_data.RData')) {
+      load('yeast_data.RData')
+      return(yeast_prnn)
+    } else {
+      yeast_prnn <- yeast %>%
+        psrn(load_info = F, id_col = 'identifier') %>%
+        mf_wrapper()
+      save(yeast_prnn, file = 'yeast_data.RData')
+      return(yeast_prnn)
+    }
+  } else if (data == 'ups') {
+    if (file.exists('ups_data.RData')) {
+      load('ups_data.RData')
+      return(ups_prnn)
+    } else {
+      ups_prnn <- ups %>%
+        psrn('identifier') %>%
+        mf_wrapper()
+      save(ups_prnn, file = 'ups_data.RData')
+      return(ups_prnn)
+    }
+  } else if (data == 'ramus') {
+    if (file.exists('ramus_data.RData')) {
+      load('ramus_data.RData')
+      return(ramus_prnn)
+    } else {
+      ramus_prnn <- readr::read_csv('ramus_clean.csv') %>%
+        rename_with(~paste0('condi', rep(1:9, each = 3), '_', rep(1:3, lenght.out = 9*3)), where(is.numeric)) %>%
+        psrn(load_info = F, id_col = 'identifier') %>%
+        mf_wrapper()
+      save(ramus_prnn, file = 'ramus_data.RData')
+      return(ramus_prnn)
+    }
+  } else if (data == 'human') {
+    if (file.exists('human_data.RData')) {
+      load('human_data.RData')
+      return(human_prnn)
+    } else {
+      human_prnn <- readxl::read_excel('diaWorkflowResults_allDilutions.xlsx', na = "NA") %>% #, sheet = 'OSW_DIANN_AI_GPF') %>%
+        dplyr::select(-2:-24) %>%
+        rename_with(
+          ~str_replace_all(.,
+                           c(
+                             '\\.\\.\\.1' = 'identifier',
+                             '1-' = 'spike_prop_'
+                           )
+          ),
+          everything()
+        ) %>%
+        rename_with(
+          ~str_remove(., '[0-9]*$') %>%
+            paste0(., 1:23),
+          where(is.numeric)
+        ) %>%
+        filter(
+          rowSums(across(-1, is.na)) != 69
+        ) %>%
+        mf_wrapper()
+      save(human_prnn, file = 'human_data.RData')
+      return(human_prnn)
+    }
+  } else {
+    stop('Dataset does not exist')
+  }
+}
+
+fit_lgmr <- function(data, model, mixed = TRUE, p_beta = c(1, 1), prop = .01, bound = .5) {
+  if (!'sd' %in% names(data)) {
+    stop('sd is not a column in the data\n Did you forget to calculate the Mean-Variance trend?')
+  } else if(is.unsorted(data$sd) & is.unsorted(data$sd, strictly = TRUE)) {
+    stop('Data is not sorted from smallest to largest sd.\n Did you forget to sort the data?')
+  }
+  n <- nrow(data)
+  input <- list(
+    N = n, U = round(n*prop), M = mixed,
+    y = data$sd, x = data$mean,
+    p_beta = p_beta, lb_bound = 1 - bound, ub_bound = bound
+  )
+  rstan::sampling(
+    model, data = input,
+    cores = 5, chains = 5,
+    iter = 2500, warmup = 500,
+    control = list(adapt_delta = .9)
+  )
+}
+
+reg_fun <- function(p, reg_pars, y_bar, mixed = TRUE){
+  q <- 1 - p
+  out <- exp(q*(reg_pars['I_U'] - reg_pars['S_U']*y_bar))
+  if (mixed) {
+    exp(p*(reg_pars['I_L'] - reg_pars['S_L']*y_bar))*out
+  } else {
+    exp(reg_pars['I_L'] - reg_pars['S_L']*y_bar)*out
+  }
+}
+
+plot_regression <- function(data, reg_pars, mixed = TRUE) {
+  anno_pars <- round(reg_pars, 2)
+  if(mixed) {
+    eq_part1 <- paste0(
+      'bold(\u03bc) == exp(bold(p)%.%(',
+      sprintf(
+        '%1$s - %2$s*bold(bar(y)))',
+        anno_pars['I_L'], anno_pars['S_L']
+      )
+    )
+  } else {
+    eq_part1 <- paste0(
+      'bold(\u03bc) == exp(',
+      sprintf(
+        '%1$s - %2$s*bold(bar(y))',
+        anno_pars['I_L'], anno_pars['S_L']
+      )
+    )
+  }
+  eq <- paste0(
+    eq_part1,
+    ' + bold(q)%.%',
+    sprintf(
+      '(%1$s - %2$s*bold(bar(y))))',
+      anno_pars['I_U'], anno_pars['S_U']
+    )
+  )
+  upper <- ~ reg_fun(0,   reg_pars, .x, mixed)
+  middl <- ~ reg_fun(0.5, reg_pars, .x, mixed)
+  lower <- ~ reg_fun(1,   reg_pars, .x, mixed)
+  data %>%
+    ggplot(aes(mean, sd, color = p)) +
+    geom_point(size = .1) +
+    theme_classic() +
+    scale_color_viridis_c(end = .9) +
+    theme(
+      legend.position = c(.75, .75)
+    ) +
+    stat_function(aes(color = 1),   fun = lower, linewidth = .9, n = 10000) +
+    stat_function(aes(color = .5),  fun = middl, linewidth = .9, n = 10000) +
+    stat_function(aes(color = 0),   fun = upper, linewidth = .9, n = 10000) +
+    labs(
+      x = expression(bold(bar(y))),
+      y = expression(bold(s))
+    ) +
+    annotate('text', Inf, Inf, hjust = 1, vjust = 1, label = eq, parse = T)
+}
+
+#### RF Imputation ####
+mf_wrapper <- function(data) {
+  auxilary <- data %>%
+    select(-where(is.numeric))
+  cl <- parallel::makeCluster(
+    min(ncol(data) - 1, round(parallel::detectCores()/2))
+  )
+  doParallel::registerDoParallel(cl)
+  out <- data %>%
+    select(where(is.numeric)) %>%
+    as.data.frame() %>%
+    missForest::missForest(maxiter = 20, parallelize = 'forests', verbose = TRUE) %>%
+    use_series(ximp) %>%
+    as_tibble() %>%
+    bind_cols(auxilary, .)
+  rm(cl)
+  gc(F)
+  return(out)
+}
+
+#### Imputation ####
+trend_imputation <- function (data, design) {
+  conditions <- get_conditions(design)
+  LOQ <- data %>%
+    dplyr::select(dplyr::matches(conditions)) %>%
+    unlist(T, F) %>%
+    {
+      stats::quantile(., 0.25, na.rm = T) - 1.5 * stats::IQR(., na.rm = T)
+    } %>%
+    unname()
+  order <- data %>%
+    colnames()
+  gam_reg <- estimate_trend(data, design)
+  order <- data %>%
+    colnames()
+  tmp_cols <- data %>%
+    select(-matches(conditions)) %>%
+    colnames()
+  means <- data %>%
+    select(matches(conditions)) %>%
+    split.default(str_extract(colnames(.), conditions)) %>%
+    map(rowMeans, na.rm = T)
+  data %>%
+    bind_cols(means) %>%
+    select(matches(conditions)) %>%
+    split.default(str_extract(colnames(.), conditions)) %>%
+    map(rename, mean = last_col()) %>%
+    map(
+      mutate,
+      mean = replace_na(mean, LOQ),
+      mean = if_else(mean > LOQ, mean, LOQ),
+      sd_pred = predict.glm(gam_reg, newdata = data.frame(mean = mean), type = 'response'),
+      imp = apply(across(everything()), 1, impute_row, LOQ)
+    ) %>%
+    map(select, imp) %>%
+    map(unnest, imp) %>%
+    bind_cols(data[tmp_cols], .) %>%
+    select(all_of(order))
+}
+
+get_conditions <- function(design) {
+  colnames(design) %>%
+    str_flatten('|')
+}
+
+pooled_sd <- function(data, design) {
+  condi <- get_conditions(design)
+  n <- colSums(design)
+  data %>%
+    select(matches(condi)) %>%
+    split.default(str_extract(colnames(.), condi)) %>%
+    map2(n,
+         ~ apply(.x, 1, sd)*(.y - 1)
+    ) %>%
+    as_tibble() %>%
+    summarise(
+      sd = apply(across(everything()), 1, sum)/(sum(n) - length(n))
+    ) %>%
+    bind_cols(select(data, -sd), .)
+}
+
+estimate_trend <- function(data, design) {
+  data %>%
+    drop_na() %>%
+    calculate_mean_sd_trends(design) %>%
+    #pooled_sd(design) %>%
+    fit_gamma_regression(sd ~ mean)
+}
+
+impute_row <- function (data, LOQ) {
+  if (anyNA(data)) {
+    missing <- is.na(data)
+    data[missing] <- stats::rnorm(
+      n = sum(missing),
+      mean = max(data['mean'], LOQ), sd = data['sd_pred']
+    )
+  }
+  as_tibble(as.list(data[seq_len(length(data)-2)]))
+}
 
 #### Data related functions ####
 get_human_data <- function() {
@@ -41,11 +286,11 @@ get_human_data <- function() {
   unlink('Source Data', TRUE)
 }
 get_ramus_data <- function() {
-  readr::read_csv('https://figshare.com/ndownloader/files/35592290?private_link=28e837bfe865e8f13479', show_col_types = FALSE) %>% 
+  readr::read_csv('https://figshare.com/ndownloader/files/35592290?private_link=28e837bfe865e8f13479', show_col_types = FALSE) %>%
     janitor::clean_names() %>%
     mutate(
       across(where(is.numeric), ~na_if(.x, 0))
-    ) %>% 
+    ) %>%
     readr::write_csv('ramus_clean.csv')
 }
 get_data <- function() {
@@ -84,7 +329,6 @@ create_roc <- function(p_val_col, data, regex, cl = NULL){
              pull, p_val_col
   ) %>%
     map(unique) %>%
-    map(c, 1.1) %>%
     map(~c(-0.1, .)) %>%
     map(enframe, value = 'alpha', name = NULL)
   data <- data %>%
@@ -184,6 +428,7 @@ limma_wrapper <- function(data, design, contrast, weights = NULL){
     ) %>%
     dplyr::mutate(comparison = stringr::str_replace(comparison, "-", " vs "))
 }
+
 calc_weights <- function(df, gm){
   id <- df$identifier
   df %>%
@@ -206,7 +451,8 @@ ttest_wrapper <- function(contrast, data) {
     group_by(identifier) %>%
     mutate(
       comparison = str_flatten(comp, ' vs '),
-      p_val = t.test(across(contains(comp[1])), across(contains(comp[2])), var.equal = T)$p.value
+      p_val = t.test(across(contains(comp[1])), across(contains(comp[2])), var.equal = T)$p.value,
+      p_val = p.adjust(p_val, 'fdr')
     ) %>%
     select(identifier, comparison, p_val)
 }

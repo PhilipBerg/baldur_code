@@ -1,41 +1,51 @@
 #### Read and Normalize data ####
 # yeast
-yeast_prnn <- yeast %>%
-  drop_na() %>%
-  psrn(load_info = F, id_col = 'identifier')
+yeast_design <- model.matrix(~0+factor(rep(1:2, each = 3)))
+colnames(yeast_design) <- paste0('ng', c(50, 100))
+
+yeast_prnn <- load_data('yeast') %>%
+   # calculate_mean_sd_trends(yeast_design) %>%
+   # mutate(
+   #   across(matches(get_conditions(yeast_design)), ~ (. - mean(mean))/sd(mean))
+   # ) %>%
+  calculate_mean_sd_trends(yeast_design)
 
 # UPS
-ups_prnn <- ups %>%
-  drop_na() %>%
-  psrn(load_info = F, id_col = 'identifier')
+ups_design <- model.matrix(~0+factor(rep(1:3, each = 4)))
+colnames(ups_design) <- paste0('fmol', c(25, 50, 100))
+
+ups_prnn <- load_data('ups') %>%
+   # calculate_mean_sd_trends(ups_design) %>%
+   # mutate(
+   #   across(matches(get_conditions(ups_design)), ~ (. - mean(mean))/sd(mean))
+   # ) %>%
+  calculate_mean_sd_trends(ups_design)
 
 # If needed, download Ramus or Human DS
 get_data()
 
 # Ramus
-ramus_prnn <- readr::read_csv('ramus_clean.csv') %>%
-  drop_na() %>%
-  rename_with(~paste0('condi', rep(1:9, each = 3), '_', rep(1:3, lenght.out = 9*3)), where(is.numeric)) %>%
-  psrn(load_info = F, id_col = 'identifier')
+ramus_design <- model.matrix(~0+factor(rep(1:9, each = 3)))
+colnames(ramus_design) <- paste0('condi', 1:9)
+
+ramus_prnn <- load_data('ramus') %>%
+   # calculate_mean_sd_trends(ramus_design) %>%
+   # mutate(
+   #   across(matches(get_conditions(ramus_design)), ~ (. - mean(mean))/sd(mean))
+   # ) %>%
+  calculate_mean_sd_trends(ramus_design)
 
 # Human
-human_prnn <- readxl::read_excel('diaWorkflowResults_allDilutions.xlsx', na = "NA") %>%
-  select(-2:-24) %>%
-  rename_with(
-    ~str_replace_all(.,
-      c(
-        '\\.\\.\\.1' = 'identifier',
-        '1-' = 'spike_prop_'
-      )
-    ),
-    everything()
-  ) %>%
-  rename_with(
-    ~str_remove(., '[0-9]*$') %>%
-      paste0(., 1:23),
-    where(is.numeric)
-  ) %>%
-  drop_na()
+human_design <- model.matrix(~0+factor(rep(1:3, each = 23)))
+colnames(human_design) <- paste0('spike_prop_', c(25, 12, 6))
+
+human_prnn <- load_data('human') %>%
+  #trend_imputation(human_design) %>%
+   # calculate_mean_sd_trends(human_design) %>%
+   # mutate(
+   #   across(matches(get_conditions(human_design)), ~ (. - mean(mean))/sd(mean))
+   # ) %>%
+  calculate_mean_sd_trends(human_design)
 
 # Auxiliary variables
 full_page <- 170
