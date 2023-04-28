@@ -19,6 +19,8 @@ Then, you can run it as follows:
 ```
 ./6_human_power.R <number of columns> <number of replicates>
 ```
+Note that the script will run the LGMR model with 20 parallel threads.
+If your computer cannot handle that, please change that manually line 37.
 each run will save an `RData` file that can (and will) later be read in.
 After running all the subsets you can plot with:
 
