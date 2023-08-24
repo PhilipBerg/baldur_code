@@ -13,7 +13,7 @@ colnames(ups_design) <- paste0('fmol', c(25, 50, 100))
 ups_prnn <- load_data('ups') %>%
   calculate_mean_sd_trends(ups_design)
 
-# If needed, download Ramus or Human DS
+# If needed, download Ramus, Bruderer, or Human DS
 get_data()
 
 # Ramus
@@ -29,6 +29,12 @@ colnames(human_design) <- paste0('spike_prop_', c(25, 12, 6))
 
 human_prnn <- load_data('human') %>%
   calculate_mean_sd_trends(human_design)
+
+# Bruderer
+bruder_design <- ramus_design[1:24,1:8]
+
+bruder_prnn <- load_data('bruderer') %>%
+  calculate_mean_sd_trends(bruder_design)
 
 #### Define auxiliary variables ####
 full_page <- 170

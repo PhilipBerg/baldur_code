@@ -117,6 +117,34 @@ roc_human_ttest <- create_roc('p_val', human_ttest, 'ECOLI', cl) %>%
     method = 't-test'
   )
 
+# Bruderer
+roc_bruder_mix_baldur_results <- create_roc('err', bruder_mix_baldur_results, 'UPS', cl) %>%
+  mutate(
+    method = 'LGMR-Baldur EB'
+  )
+roc_bruder_sin_baldur_results <- create_roc('err', bruder_sin_baldur_results, 'UPS', cl) %>%
+  mutate(
+    method = 'GR-Baldur EB'
+  )
+
+roc_bruder_mix_baldur_wi_results <- create_roc('err', bruder_mix_baldur_wi_results, 'UPS', cl) %>%
+  mutate(
+    method = 'LGMR-Baldur WI'
+  )
+roc_bruder_sin_baldur_wi_results <- create_roc('err', bruder_sin_baldur_wi_results, 'UPS', cl) %>%
+  mutate(
+    method = 'GR-Baldur WI'
+  )
+
+roc_bruder_trend <- create_roc('p_val', bruder_trend, 'UPS', cl) %>%
+  mutate(
+    method = 'Limma-Trend'
+  )
+roc_bruder_ttest <- create_roc('p_val', bruder_ttest, 'UPS', cl) %>%
+  mutate(
+    method = 't-test'
+  )
+
 rm(cl)
 gc()
 
@@ -186,6 +214,25 @@ human_roc <- ls(pattern = 'roc_human.*') %>%
   )
 
 human_auroc <- human_roc %>%
+  group_by(comparison, method) %>%
+  summarise(
+    auROC = integrater(FPR, TPR)
+  ) %>%
+  arrange(desc(auROC)) %>%
+  mutate(
+    FPR = seq(0.1, .98, length.out = n()),
+    TPR = 0
+  )
+
+# Bruderer
+bruder_roc <- ls(pattern = 'roc_bruder.*') %>%
+  map(get) %>%
+  bind_rows() %>%
+  mutate(
+    comparison = "All"
+  )
+
+bruder_auroc <- bruder_roc %>%
   group_by(comparison, method) %>%
   summarise(
     auROC = integrater(FPR, TPR)

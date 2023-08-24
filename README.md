@@ -1,5 +1,5 @@
-# baldur_workflow
-The R process to generate the results presented in the manuscript.
+# baldur Workflow
+The R code to generate the results presented in the manuscript.
 
 Everything except the power analysis can be ran with the following:
 ```{r, eval = FALSE}
@@ -20,13 +20,15 @@ Then, you can run it as follows:
 ./6_human_power.R <number of columns> <number of replicates>
 ```
 each run will save an `RData` file that can (and will) later be read in.
-After running all the subsets you can plot with:
+After running all the subsets we get the running time of the datasets and plot:
 
 ```{r, eval = FALSE}
-source("7_plotting.R")
+source("7_running_time.R") # WARNING this takes a very long time and assumes your computer is able to run with 64 parallel workers.
+                           # Your computer will likely crash if it cannot run 64 workers.
+source("8_plotting.R")
 ```
 
-Note that the plotting script is hardcoded for the following sequence of columns:
+Note that the plotting script is hardcoded for the following sequence of columns for the power analysis:
 ```{r, eval = FALSE}
 3, 6, 9, 12, 15, 18, 21
 ```

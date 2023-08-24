@@ -281,3 +281,69 @@ human_sin_baldur_wi_results <- baldur_wrapper(
   workers
 )
 tictoc::toc()
+
+#### Bruderer ####
+#### Limma & t-test ####
+bruder_contrast <- combn(colnames(bruder_design), 2) %>%
+  t() %>%
+  apply(1, str_flatten, '-') %>%
+  limma::makeContrasts(contrasts = ., levels = bruder_design)
+
+bruder_trend <- load_data('bruderer') %>%
+  limma_wrapper(bruder_design, bruder_contrast)
+
+bruder_ttest <- map(colnames(bruder_contrast), ttest_wrapper, bruder_prnn) %>%
+  bind_rows()
+
+#### Baldur ####
+bruder_cont <- combn(1:8, 2) %>%
+  apply(2, make_pairwise_contrast, 8)
+
+# LGMR #
+tictoc::tic('LGMR-Baldur Bruderer')
+bruder_mix_baldur_results <- baldur_wrapper(
+  bruder_prnn,
+  bruder_design,
+  bruder_cont,
+  samp_bruder,
+  empirical_bayes,
+  workers
+)
+tictoc::toc()
+
+tictoc::tic('LGMR-Baldur bruderer (WI)')
+bruder_mix_baldur_wi_results <- baldur_wrapper(
+  bruder_prnn,
+  bruder_design,
+  bruder_cont,
+  samp_bruder,
+  weakly_informative,
+  workers
+)
+tictoc::toc()
+
+# GR #
+bruder_sin_gam <- bruder_prnn %>%
+  fit_gamma_regression(sd ~ mean)
+
+tictoc::tic('GR-Baldur bruderer')
+bruder_sin_baldur_results <- baldur_wrapper(
+  bruder_prnn,
+  bruder_design,
+  bruder_cont,
+  bruder_sin_gam,
+  empirical_bayes,
+  workers
+)
+tictoc::toc()
+
+tictoc::tic('GR-Baldur bruderer (WI)')
+bruder_sin_baldur_wi_results <- baldur_wrapper(
+  bruder_prnn,
+  bruder_design,
+  bruder_cont,
+  bruder_sin_gam,
+  weakly_informative,
+  workers
+)
+tictoc::toc()

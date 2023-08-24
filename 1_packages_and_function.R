@@ -112,6 +112,17 @@ load_data <- function(data) {
       save(human_prnn, file = 'human_data.RData')
       return(human_prnn)
     }
+  } else if(data == 'bruderer') {
+    if (file.exists('bruderer_data.RData')) {
+      load('bruderer_data.RData')
+      return(bruderer_prnn)
+    } else {
+      bruderer_prnn <- readr::read_csv('bruderer_clean.csv') %>%
+        psrn(load_info = F, id_col = 'identifier') %>%
+        mf_wrapper()
+      save(bruderer_prnn, file = 'bruderer_data.RData')
+      return(bruderer_prnn)
+    }
   } else {
     stop('Dataset does not exist')
   }
@@ -132,12 +143,43 @@ get_ramus_data <- function() {
     ) %>%
     readr::write_csv('ramus_clean.csv')
 }
+get_bruderer_data <- function() {
+  download.file("https://ars.els-cdn.com/content/image/1-s2.0-S1535947620328851-mmc1.zip", destfile = 'tmp.zip')
+  unzip('tmp.zip')
+  invisible(file.copy('m114.044305.dc1/mcp.M114.044305-3.xlsx', './bruderer.xlsx'))
+  read_excel("bruderer.xlsx", sheet = "HRM - normalized data table", skip = 1, na = "") %>%
+    select(-Charge) %>%
+    rename_with(~ paste0('condi', rep(1:8, each = 3), '_', 1:3), where(is.numeric)) %>%
+    janitor::clean_names() %>%
+    fill(protein, .direction = 'down') %>%
+    mutate(
+      mastermix = if_else(
+        protein %in% c(
+          "P02754", "P80025", "P00921", "P00366", "P02662", "P61823",
+          "P02789", "P12799", "P02676", "P02672", "P02666", "P68082"
+        ),
+        T, F
+      )
+    ) %>%
+    filter(!(if_all(where(is.numeric), is.na) | is.na(mastermix))) %>%
+    group_by(protein, mastermix) %>%
+    summarise(
+      across(where(is.numeric), mean, na.rm = T)
+    )  %>%
+    unite('identifier', 1:2) %>%
+    readr::write_csv('bruderer_clean.csv')
+  file.remove("bruderer.xlsx", 'tmp.zip')
+  unlink('m114.044305.dc1', T)
+}
 get_data <- function() {
   if(!file.exists('diaWorkflowResults_allDilutions.xlsx')) {
     get_human_data()
   }
   if(!file.exists('ramus_clean.csv')) {
     get_ramus_data()
+  }
+  if(!file.exists('bruderer_clean.csv')) {
+    get_bruderer_data()
   }
 }
 
@@ -161,7 +203,7 @@ calc_tpr_fpr <- function(alpha, hits, p, n, p_val_col){
     )
 }
 
-create_roc <- function(p_val_col, data, regex, cl = NULL){
+roc_method_within <- function(p_val_col, data, regex, cl) {
   data <- data %>%
     split.data.frame(.$comparison)
   out <- map(data,
@@ -187,14 +229,6 @@ create_roc <- function(p_val_col, data, regex, cl = NULL){
     ) %>%
     map(sum)
   if(!is.null(cl)){
-    multidplyr::cluster_library(cl,
-                                c("dplyr",
-                                  "stringr",
-                                  "tidyr",
-                                  "purrr",
-                                  "tibble"
-                                )
-    )
     multidplyr::cluster_copy(cl,
                              c(
                                "calc_tpr_fpr",
@@ -207,6 +241,80 @@ create_roc <- function(p_val_col, data, regex, cl = NULL){
   }
   pmap(list(out, data, p, n), create_roc_helper, cl, p_val_col) %>%
     bind_rows()
+}
+
+roc_method_between <- function(p_val_col, data, regex, cl) {
+  p <- data$identifier %>%
+    unique() %>%
+    str_detect(regex)
+  n <- length(p) - sum(p)
+  p <- sum(p)
+  if(!is.null(cl)){
+    multidplyr::cluster_copy(cl,
+                             c(
+                               "calc_tpr_fpr",
+                               "regex",
+                               "p",
+                               "n",
+                               "between_helper",
+                               "p_val_col"
+                             )
+    )
+  }
+  data %>%
+    nest(data = -comparison) %>%
+    multidplyr::partition(cl) %>%
+    mutate(
+      out = map(data, pull, p_val_col),
+      out = map(out, enframe, name = NULL, value = 'alpha'),
+      out = map(out, distinct),
+      out = map(out, bind_rows, tibble(alpha = c(-.1, 0))),
+      data = map(data,
+                 ~ transmute(.x,
+                             !!p_val_col := !!sym(p_val_col),
+                             tp = str_detect(identifier, regex),
+                             tn = !tp
+                 )
+      )
+    ) %>%
+    mutate(
+      out = map2(out, data, between_helper)
+    ) %>%
+    collect() %>%
+    select(comparison, out) %>%
+    unnest(cols = out)
+}
+
+between_helper <- function(out, data) {
+  out %>%
+    mutate(
+      results = map(alpha,
+                    ~ calc_tpr_fpr(.x, data, p, n, p_val_col)
+      )
+    ) %>%
+    unnest(cols = results)
+}
+
+create_roc <- function(p_val_col, data, regex, cl = NULL){
+  if (!is.null(cl)) {
+    multidplyr::cluster_library(cl,
+                                c("dplyr",
+                                  "stringr",
+                                  "tidyr",
+                                  "purrr",
+                                  "tibble"
+                                )
+    )
+  }
+  comps <- data %>%
+    use_series(comparison) %>%
+    unique() %>%
+    length()
+  if(comps < 10) {
+    roc_method_within( p_val_col, data, regex, cl)
+  } else {
+    roc_method_between(p_val_col, data, regex, cl)
+  }
 }
 
 create_roc_helper <- function(out, data, p, n, cl, p_val_col) {
