@@ -34,4 +34,4 @@ tictoc::tic('Bruderer')
 samp_bruder <- fit_lgmr(bruder_prnn, 'identifier', simplify = TRUE, cores = 5)
 tictoc::toc()
 
-human_bruder <- coef(samp_bruder, TRUE, c('coef', 'aux'))
+bruder_pars <- coef(samp_bruder, TRUE, c('coef', 'aux'))
