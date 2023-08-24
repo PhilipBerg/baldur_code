@@ -233,7 +233,7 @@ bruder_roc <- ls(pattern = 'roc_bruder.*') %>%
   )
 
 bruder_auroc <- bruder_roc %>%
-  group_by(comparison, method) %>%
+  group_by(method) %>%
   summarise(
     auROC = integrater(FPR, TPR)
   ) %>%
