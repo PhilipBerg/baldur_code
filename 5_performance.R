@@ -118,29 +118,29 @@ roc_human_ttest <- create_roc('p_val', human_ttest, 'ECOLI', cl) %>%
   )
 
 # Bruderer
-roc_bruder_mix_baldur_results <- create_roc('err', bruder_mix_baldur_results, 'UPS', cl) %>%
+roc_bruder_mix_baldur_results <- create_roc('err', bruder_results$bruder_mix_baldur_results, 'TRUE', cl) %>%
   mutate(
     method = 'LGMR-Baldur EB'
   )
-roc_bruder_sin_baldur_results <- create_roc('err', bruder_sin_baldur_results, 'UPS', cl) %>%
+roc_bruder_sin_baldur_results <- create_roc('err', bruder_results$bruder_sin_baldur_results, 'TRUE', cl) %>%
   mutate(
     method = 'GR-Baldur EB'
   )
 
-roc_bruder_mix_baldur_wi_results <- create_roc('err', bruder_mix_baldur_wi_results, 'UPS', cl) %>%
+roc_bruder_mix_baldur_wi_results <- create_roc('err', bruder_results$bruder_mix_baldur_wi_results, 'TRUE', cl) %>%
   mutate(
     method = 'LGMR-Baldur WI'
   )
-roc_bruder_sin_baldur_wi_results <- create_roc('err', bruder_sin_baldur_wi_results, 'UPS', cl) %>%
+roc_bruder_sin_baldur_wi_results <- create_roc('err', bruder_results$bruder_sin_baldur_wi_results, 'TRUE', cl) %>%
   mutate(
     method = 'GR-Baldur WI'
   )
 
-roc_bruder_trend <- create_roc('p_val', bruder_trend, 'UPS', cl) %>%
+roc_bruder_trend <- create_roc('p_val', bruder_results$bruder_trend, 'TRUE', cl) %>%
   mutate(
     method = 'Limma-Trend'
   )
-roc_bruder_ttest <- create_roc('p_val', bruder_ttest, 'UPS', cl) %>%
+roc_bruder_ttest <- create_roc('p_val', bruder_results$bruder_ttest, 'TRUE', cl) %>%
   mutate(
     method = 't-test'
   )

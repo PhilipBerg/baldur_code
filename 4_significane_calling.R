@@ -347,3 +347,8 @@ bruder_sin_baldur_wi_results <- baldur_wrapper(
   workers
 )
 tictoc::toc()
+
+bruder_results <- mget(ls(pattern = "^bruder.*(ttest|trend|results)$")) %>%
+  map(
+    mutate, comparison = 'All'
+  )
