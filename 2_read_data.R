@@ -36,6 +36,13 @@ bruder_design <- ramus_design[1:24,1:8]
 bruder_prnn <- load_data('bruderer') %>%
   calculate_mean_sd_trends(bruder_design)
 
+# Navarro
+navarro_design <- yeast_design
+colnames(navarro_design) <- paste0('condi', 1:2)
+
+navarro_prnn <- load_data('navarro') %>%
+  calculate_mean_sd_trends(navarro_design)
+
 #### Define auxiliary variables ####
 full_page <- 170
 half_page <- 85

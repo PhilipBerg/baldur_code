@@ -385,8 +385,76 @@ bruder <- microbenchmark::microbenchmark(
   times = 10
 )
 
+print('navarro')
+navarro <- microbenchmark::microbenchmark(
+  navarro2 = baldur_wrapper(
+    navarro_prnn,
+    navarro_design,
+    navarro_cont,
+    navarro_sin_gam,
+    eb,
+    2
+  ),
+  navarro4 = baldur_wrapper(
+    navarro_prnn,
+    navarro_design,
+    navarro_cont,
+    navarro_sin_gam,
+    eb,
+    4
+  ),
+  navarro6 = baldur_wrapper(
+    navarro_prnn,
+    navarro_design,
+    navarro_cont,
+    navarro_sin_gam,
+    eb,
+    6
+  ),
+  navarro8 = baldur_wrapper(
+    navarro_prnn,
+    navarro_design,
+    navarro_cont,
+    navarro_sin_gam,
+    eb,
+    8
+  ),
+  navarro10 = baldur_wrapper(
+    navarro_prnn,
+    navarro_design,
+    navarro_cont,
+    navarro_sin_gam,
+    eb,
+    10
+  ),
+  navarro16 = baldur_wrapper(
+    navarro_prnn,
+    navarro_design,
+    navarro_cont,
+    navarro_sin_gam,
+    eb,
+    16
+  ),
+  navarro32 = baldur_wrapper(
+    navarro_prnn,
+    navarro_design,
+    navarro_cont,
+    navarro_sin_gam,
+    eb,
+    32
+  ),
+  navarro64 = baldur_wrapper(
+    navarro_prnn,
+    navarro_design,
+    navarro_cont,
+    navarro_sin_gam,
+    eb,
+    64
+  ),
+  times = 10
+)
 
-time_data_dec_model <- mget(c('yeast', 'ups', 'ramus', 'human', 'bruder')) %>%
+time_data_dec_model <- mget(c('yeast', 'ups', 'ramus', 'human', 'bruder', 'navarro')) %>%
   map(
     ~ tibble(
       tmp = .x$expr,
@@ -397,17 +465,19 @@ time_data_dec_model <- mget(c('yeast', 'ups', 'ramus', 'human', 'bruder')) %>%
   tidyr::extract(tmp, c('dataset', 'workers'), '([a-z]*)([0-9]*)', convert = T) %>%
   mutate(
     dataset = str_to_title(dataset) %>%
-      str_replace('Ups', "UPS")
+      str_replace('Ups', "UPS") %>%
+      str_replace('Bruder', "Bruderer")
   )
 
 
 #### LGMR model ####
 lgmr_time <- microbenchmark::microbenchmark(
-  yeast  = fit_lgmr(yeast_prnn,  'identifier', simplify = TRUE, cores = 5),
-  ups    = fit_lgmr(ups_prnn,    'identifier', simplify = TRUE, cores = 5),
-  ramus  = fit_lgmr(ramus_prnn,  'identifier', simplify = TRUE, cores = 5),
-  human  = fit_lgmr(human_prnn,  'identifier', simplify = TRUE, cores = 5),
-  bruder = fit_lgmr(bruder_prnn, 'identifier', simplify = TRUE, cores = 5),
+  yeast    = fit_lgmr(yeast_prnn,   'identifier', simplify = TRUE, cores = 5),
+  ups      = fit_lgmr(ups_prnn,     'identifier', simplify = TRUE, cores = 5),
+  ramus    = fit_lgmr(ramus_prnn,   'identifier', simplify = TRUE, cores = 5),
+  human    = fit_lgmr(human_prnn,   'identifier', simplify = TRUE, cores = 5),
+  bruderer = fit_lgmr(bruder_prnn,  'identifier', simplify = TRUE, cores = 5),
+  navarro  = fit_lgmr(navarro_prnn, 'identifier', simplify = TRUE, cores = 5),
   times = 10
 ) %>%
   as_tibble() %>%
@@ -417,10 +487,11 @@ lgmr_time <- microbenchmark::microbenchmark(
       str_replace('Ups', "UPS"),
     time = time*1e-9/60,
     p = case_when(
-      dataset == 'Yeast' ~ nrow(yeast_prnn),
-      dataset == 'UPS'   ~ nrow(ups_prnn),
-      dataset == 'Ramus' ~ nrow(ramus_prnn),
-      dataset == 'Human' ~ nrow(human_prnn),
-      T                  ~ nrow(bruder_prnn),
+      dataset == 'Yeast'    ~ nrow(yeast_prnn),
+      dataset == 'UPS'      ~ nrow(ups_prnn),
+      dataset == 'Ramus'    ~ nrow(ramus_prnn),
+      dataset == 'Human'    ~ nrow(human_prnn),
+      dataset == 'Bruderer' ~ nrow(bruder_prnn),
+      T                     ~ nrow(navarro_prnn),
     )
   )

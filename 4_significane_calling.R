@@ -352,3 +352,61 @@ bruder_results <- mget(ls(pattern = "^bruder.*(ttest|trend|results)$")) %>%
   map(
     mutate, comparison = 'All'
   )
+
+#### Navarro ####
+navarro_cont <- matrix(c(1, -1), 2)
+tictoc::tic('LGMR-Baldur Nov')
+nav_mix_baldur_results <- baldur_wrapper(
+  navarro_prnn,
+  navarro_design,
+  navarro_cont,
+  samp_navar,
+  empirical_bayes,
+  workers
+)
+tictoc::toc()
+
+tictoc::tic('LGMR-Baldur Nov (WI)')
+nav_mix_baldur_wi_results <- baldur_wrapper(
+  navarro_prnn,
+  navarro_design,
+  navarro_cont,
+  samp_navar,
+  weakly_informative,
+  workers
+)
+tictoc::toc()
+
+nav_sin_gam <- navarro_prnn %>%
+  fit_gamma_regression(sd ~ mean)
+
+tictoc::tic('GR-Baldur UPS')
+nav_sin_baldur_results <- baldur_wrapper(
+  navarro_prnn,
+  navarro_design,
+  navarro_cont,
+  nav_sin_gam,
+  empirical_bayes,
+  workers
+)
+tictoc::toc()
+
+tictoc::tic('GR-Baldur UPS (WI)')
+nav_sin_baldur_wi_results <- baldur_wrapper(
+  navarro_prnn,
+  navarro_design,
+  navarro_cont,
+  nav_sin_gam,
+  weakly_informative,
+  workers
+)
+tictoc::toc()
+
+nav_contrast <- limma::makeContrasts(contrasts = 'condi1-condi2', levels = navarro_design)
+
+nav_trend <- navarro_prnn %>%
+  select(-mean:-sd) %>%
+  limma_wrapper(navarro_design, nav_contrast)
+
+nav_ttest <- map(colnames(nav_contrast), ttest_wrapper, navarro_prnn) %>%
+  bind_rows()

@@ -145,6 +145,36 @@ roc_bruder_ttest <- create_roc('p_val', bruder_results$bruder_ttest, 'TRUE', cl)
     method = 't-test'
   )
 
+# Navarro
+roc_nav_mix_baldur_results <- create_roc('err', nav_mix_baldur_results, '^((?!HUMAN).)*$', cl) %>%
+  mutate(
+    method = 'LGMR-Baldur EB'
+  )
+roc_nav_sin_baldur_results <- create_roc('err', nav_sin_baldur_results, '^((?!HUMAN).)*$', cl) %>%
+  mutate(
+    method = 'GR-Baldur EB'
+  )
+
+roc_nav_mix_baldur_wi_results <- create_roc('err', nav_mix_baldur_wi_results, '^((?!HUMAN).)*$', cl) %>%
+  mutate(
+    method = 'LGMR-Baldur WI'
+  )
+roc_nav_sin_baldur_wi_results <- create_roc('err', nav_sin_baldur_wi_results, '^((?!HUMAN).)*$', cl) %>%
+  mutate(
+    method = 'GR-Baldur WI'
+  )
+
+roc_nav_trend <- create_roc('p_val', nav_trend, '^((?!HUMAN).)*$', cl) %>%
+  mutate(
+    method = 'Limma-Trend',
+    comparison = 'condi1 vs condi2'
+  )
+roc_nav_ttest <- create_roc('p_val', nav_ttest, '^((?!HUMAN).)*$', cl) %>%
+  mutate(
+    method = 't-test',
+    comparison = 'condi1 vs condi2'
+  )
+
 rm(cl)
 gc()
 
@@ -234,6 +264,22 @@ bruder_roc <- ls(pattern = 'roc_bruder.*') %>%
 
 bruder_auroc <- bruder_roc %>%
   group_by(method) %>%
+  summarise(
+    auROC = integrater(FPR, TPR)
+  ) %>%
+  arrange(desc(auROC)) %>%
+  mutate(
+    FPR = seq(0.1, .98, length.out = n()),
+    TPR = 0
+  )
+
+# Navarro
+nav_roc <- ls(pattern = 'roc_nav.*') %>%
+  map(get) %>%
+  bind_rows()
+
+nav_auroc <- nav_roc %>%
+  group_by(comparison, method) %>%
   summarise(
     auROC = integrater(FPR, TPR)
   ) %>%

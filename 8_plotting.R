@@ -1,31 +1,31 @@
 #### Plot trends ####
 p_y <- {
   plot_gamma(yeast_prnn) +
-    ggtitle(NULL)
+    ggtitle(NULL) +
+    theme(
+      axis.title.x = element_blank()
+    )
 } %>%
   set_shape()
 p_u <- {
   plot_gamma(ups_prnn) +
     ggtitle(NULL) +
     theme(
-      axis.title.y = element_blank()
+      axis.title = element_blank()
     )
 } %>%
   set_shape()
 p_r <- {
   plot_gamma(ramus_prnn) +
-    ggtitle(NULL)+
+    ggtitle(NULL) +
     theme(
-      axis.title.y = element_blank()
+      axis.title = element_blank()
     )
 } %>%
   set_shape()
 p_h <- {
   plot_gamma(human_prnn) +
-    ggtitle(NULL) +
-    theme(
-      axis.title.y = element_blank()
-    )
+    ggtitle(NULL)
 } %>%
   set_shape()
 p_b <- {
@@ -37,8 +37,17 @@ p_b <- {
 } %>%
   set_shape()
 
-cowplot::plot_grid(p_y, p_u, p_r, p_h, p_b, nrow = 1, labels = 'AUTO', align = 'hv')
-ggsave_wrapper('single_trends', width = full_page, height = full_page/3)
+p_n <- {
+  plot_gamma(navarro_prnn) +
+    ggtitle(NULL) +
+    theme(
+      axis.title.y = element_blank()
+    )
+} %>%
+  set_shape()
+
+cowplot::plot_grid(p_y, p_u, p_r, p_h, p_b, p_n, nrow = 2, labels = 'AUTO', align = 'hv')
+ggsave_wrapper('single_trends', width = full_page, height = full_page/2)
 
 rng <- 10
 n    <- 100
@@ -47,7 +56,7 @@ f_y <- plot_regression_field(samp, rng = rng, n = n) +
     legend.background = element_blank(),
     legend.key.size = unit(8, 'pt'),
     legend.text = element_text(size = unit(9, 'pt')),
-    legend.position = c(.8, .8),
+    legend.position = c(.8, .7),
     legend.spacing.y = unit(0, 'pt'),
     legend.spacing.x = unit(0, 'pt')
   )
@@ -58,7 +67,7 @@ f_u <- plot_regression_field(samp_ups, rng = rng, n = n) +
       axis.title.y = element_blank(),
       legend.key.size = unit(8, 'pt'),
       legend.text = element_text(size = unit(9, 'pt')),
-      legend.position = c(.8, .8),
+      legend.position = c(.8, .7),
       legend.spacing.y = unit(0, 'pt'),
       legend.spacing.x = unit(0, 'pt')
     )
@@ -70,7 +79,7 @@ f_r <- plot_regression_field(samp_ramus, rng = rng, n = n) +
     axis.title.y = element_blank(),
     legend.key.size = unit(8, 'pt'),
     legend.text = element_text(size = unit(9, 'pt')),
-    legend.position = c(.8, .8),
+    legend.position = c(.8, .7),
     legend.spacing.y = unit(0, 'pt'),
     legend.spacing.x = unit(0, 'pt')
   )
@@ -81,7 +90,6 @@ f_h <- plot_regression_field(samp_human, rng = rng, n = n) +
     legend.position = c(.8, .8),
     legend.key.size = unit(8, 'pt'),
     legend.text = element_text(size = unit(9, 'pt')),
-    axis.title.y = element_blank(),
     legend.spacing.y = unit(0, 'pt'),
     legend.spacing.x = unit(0, 'pt'),
     plot.margin = margin(l = .5)
@@ -99,20 +107,57 @@ f_b <- plot_regression_field(samp_bruder, rng = rng, n = n) +
     plot.margin = margin(l = .5)
   )
 
-paste0('f_', c('y', 'u', 'r', 'h', 'b')) %>%
+f_n <- plot_regression_field(samp_navar, rng = rng, n = n) +
+  theme(
+    legend.background = element_blank(),
+    legend.position = c(.8, .8),
+    legend.key.size = unit(8, 'pt'),
+    legend.text = element_text(size = unit(9, 'pt')),
+    axis.title.y = element_blank(),
+    legend.spacing.y = unit(0, 'pt'),
+    legend.spacing.x = unit(0, 'pt'),
+    plot.margin = margin(l = .5)
+  )
+
+paste0('f_', c('y', 'u', 'r', 'h', 'b', 'n')) %>%
   map(get) %>%
   map(
     ~ {.x$layers[[1]]$aes_params$size <- .05; .x}
   ) %>%
-  cowplot::plot_grid(plotlist = ., labels = 'AUTO', align = 'hv', nrow = 1)
-ggsave_wrapper('field_mixed', width = full_page, height = full_page*1/3)
+  cowplot::plot_grid(plotlist = ., labels = 'AUTO', align = 'hv', nrow = 2)
+ggsave_wrapper('field_mixed', width = full_page, height = full_page/2)
+
+f_h <- f_h +
+  theme(
+    axis.title.y = element_blank()
+  )
+paste0('f_', c('y', 'u', 'r', 'h', 'b', 'n')) %>%
+  map(get) %>%
+  map(
+    ~ .x +
+      theme(
+        legend.position = "none",
+        plot.margin = margin(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()
+      )
+  ) %>%
+  map(
+    ~ {.x$layers[[1]]$aes_params$size <- .05; .x}
+  ) %>%
+  cowplot::plot_grid(plotlist = ., align = 'hv', nrow = 1)
+ggsave_wrapper('field_mixed_abstract', width = full_page, height = full_page/3)
 
 #### Plot performance ####
 color_scheeme <- set_names(viridisLite::turbo(6, end = .9),
-                           c("LGMR-Baldur EB", "LGMR-Baldur WI", 'GR-Baldur EB', 'GR-Baldur WI',
-                                                              'Limma-Trend', 't-test'))
+                           c(
+                             "LGMR-Baldur EB", "LGMR-Baldur WI",
+                             'GR-Baldur EB', 'GR-Baldur WI',
+                             'Limma-Trend', 't-test'
+                           )
+)
 # yeast
-yeast_roc %>%
+yr <- yeast_roc %>%
   group_by(comparison, method) %>%
   arrange(alpha) %>%
   ggplot(aes(FPR, TPR, color = method)) +
@@ -482,7 +527,7 @@ ups_roc %>%
     axis.text.x = element_text(size = 7),
     legend.background = element_blank(),
     legend.direction = 'vertical',
-    strip.text = element_text(size = 5, face = 'bold')
+    strip.text = element_text(size = 4, face = 'bold')
   ) +
   facet_wrap(factor(
     comparison,
@@ -555,8 +600,8 @@ ramus_roc %>%
                        override.aes = list(linewidth = 1)
                      )
   ) +
-  scale_y_continuous(breaks = seq(0, 1,.25), labels = function(x) ifelse(x == 0, "0", x)) +
-  scale_x_continuous(breaks = c(0, .05, .125, .2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_y_continuous(breaks = seq(0, 1, .25), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = c(0, .05, .15), labels = function(x) ifelse(x == 0, "0", x)) +
   theme(
     legend.position = 'top',
     plot.margin = margin(),
@@ -583,7 +628,7 @@ ramus_roc %>%
   geom_vline(xintercept = .05, linetype = 'dotted', color = 'red') +
   geom_path(linewidth = 1/6) +
   scale_y_continuous(breaks = seq(0,1,.5), labels = function(x) ifelse(x == 0, "0", x)) +
-  scale_x_continuous(breaks = c(0, .05, .125, .2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = c(0, .05, .15), labels = function(x) ifelse(x == 0, "0", x)) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
@@ -619,7 +664,7 @@ ramus_roc %>%
   geom_vline(xintercept = .05, linetype = 'dotted', color = 'red') +
   geom_path(linewidth = 1/6) +
   scale_y_continuous(breaks = seq(0,1,.5), labels = function(x) ifelse(x == 0, "0", x)) +
-  scale_x_continuous(breaks = c(0, .05, .125, .2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = c(0, .05, .15), labels = function(x) ifelse(x == 0, "0", x)) +
   theme_classic() +
   scale_color_manual('Method',
                      values = color_scheeme,
@@ -724,7 +769,7 @@ hr <- human_roc %>%
     shape = expression(alpha~phantom())
   )
 
-cowplot::plot_grid(ur, hr, labels = 'AUTO', nrow = 2, rel_heights = c(.6, .3), rel_widths = c(1, 1)) + #, hjust = c(-1.9, -1.8), rel_widths = c(1, 1)) +
+cowplot::plot_grid(ur, hr, labels = 'AUTO', nrow = 2, rel_heights = c(.6, .3), rel_widths = c(1, 1)) +
   theme(
     plot.margin = margin(0, 0, 15, 15)
   ) +
@@ -879,7 +924,6 @@ bruder_roc %>%
   arrange(alpha) %>%
   ggplot(aes(alpha, MCC, color = method)) +
   geom_segment(aes(x = .05 , y = 0, xend = .05, yend = .62), linetype = 'dotted', color = 'red') +
-  # geom_vline(xintercept = .05, linetype = 'dotted', color = 'red') +
   geom_path(linewidth = 1/6) +
   theme_classic() +
   scale_color_manual('Method',
@@ -894,7 +938,7 @@ bruder_roc %>%
   scale_y_continuous(breaks = seq(0,.6,.2)) +
   scale_x_continuous(breaks = c(.01, .05, .1, .15, .2), labels = function(x) ifelse(x == 0, "0", x)) +
   theme(
-    legend.position = c(.6, .94),
+    legend.position = c(.585, .939),
     plot.margin = margin(),
     legend.background = element_blank(),
     legend.direction = 'horizontal',
@@ -907,7 +951,7 @@ bruder_roc %>%
   )
 ggsave_wrapper('bruderer_mcc', width = half_page, height = half_page)
 
-bruder_roc %>%
+  bruder_roc %>%
   filter(between(alpha, 0, .2)) %>%
   pivot_longer(c(TPR, FPR, precision)) %>%
   mutate(
@@ -976,6 +1020,144 @@ bruder_roc %>%
   )
 ggsave_wrapper('bar_alpha_05_bruderer', width = half_page, height = half_page)
 
+# Navarro
+nr <- nav_roc %>%
+  group_by(method) %>%
+  arrange(alpha) %>%
+  ggplot(aes(FPR, TPR, color = method)) +
+  geom_path(linewidth = 1/6) +
+  theme_classic() +
+  geom_text(data = nav_auroc,
+            aes(FPR, TPR, label = round(auROC, 3)),
+            size = 3,
+            show.legend = F
+  ) +
+  scale_color_manual('Method',
+                     values = color_scheeme,
+                     guide = guide_legend(
+                       ncol = 1,
+                       title.position = "top",
+                       override.aes = list(linewidth = 1)
+                     )
+  ) +
+  scale_y_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = seq(0,1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  theme(
+    legend.position = c(.7, .3),
+    plot.margin = margin(),
+    legend.direction = 'horizontal',
+    legend.key.size = unit(.2, "cm"),
+    legend.spacing.y = unit(.01, 'cm')
+  ) +
+  labs(
+    y = 'True Positive Rate',
+    x = 'False Positive Rate',
+    shape = expression(alpha~phantom())
+  )
+cowplot::plot_grid(yr, nr, nrow = 1, align = 'hv', labels = "AUTO")
+ggsave_wrapper('yn_roc', full_page, half_page)
+
+nav_roc %>%
+  filter(between(alpha, 0, .2)) %>%
+  group_by(comparison, method) %>%
+  arrange(alpha) %>%
+  ggplot(aes(alpha, MCC, color = method)) +
+  geom_vline(xintercept = .05, linetype = 'dotted', color = 'red') +
+  geom_path(linewidth = 1/6) +
+  theme_classic() +
+  scale_color_manual('Method',
+                     values = color_scheeme,
+                     guide = guide_legend(
+                       ncol = 1,
+                       title.position = "top",
+                       title.vjust = -2.5,
+                       override.aes = list(linewidth = 1)
+                     )
+  ) +
+  scale_y_continuous(breaks = seq(0,.6,.2)) +
+  scale_x_continuous(breaks = c(.01, .05, .1, .15, .2), labels = function(x) ifelse(x == 0, "0", x)) +
+  theme(
+    legend.position = c(.795, .16),
+    plot.margin = margin(),
+    legend.direction = 'horizontal',
+    legend.background = element_blank(),
+    legend.key.size = unit(.25, "cm"),
+    legend.spacing = unit(0, 'mm')
+  ) +
+  labs(
+    x = expression(alpha),
+    y = 'Matthews Correlation Coefficient'
+  )
+ggsave_wrapper('nav_mcc', width = half_page, height = half_page)
+
+nav_roc %>%
+  filter(between(alpha, 0, .2)) %>%
+  pivot_longer(c(TPR, FPR, precision)) %>%
+  mutate(
+    slope = if_else(name == 'precision', 0, 1),
+    name = str_replace(name, 'pre', 'Pre'),
+    name = str_replace(name, 'FPR', 'False Positive Rate'),
+    name = str_replace(name, 'TPR', 'True Positive Rate'),
+    name = factor(name, levels = facet_order, ordered = T)
+  ) %>%
+  group_by(comparison, method) %>%
+  arrange(alpha) %>%
+  ggplot(aes(alpha, value, color = method)) +
+  geom_vline(xintercept = .05, linetype = 'dotted', color = 'red') +
+  geom_path(linewidth = 1/6) +
+  theme_classic() +
+  scale_color_manual('Method',
+                     values = color_scheeme,
+                     guide = guide_legend(
+                       ncol = 1,
+                       title.position = "top",
+                       title.vjust = -2.5,
+                       override.aes = list(linewidth = 1)
+                     )
+  ) +
+  scale_y_continuous(breaks = seq(0, 1,.2), labels = function(x) ifelse(x == 0, "0", x)) +
+  scale_x_continuous(breaks = c(.01, .05, .1, .15, .2), labels = function(x) ifelse(x == 0, "0", x)) +
+  theme(
+    legend.position = c(.9, .166),
+    plot.margin = margin(),
+    legend.direction = 'horizontal',
+    legend.key.size = unit(.25, "cm"),
+    legend.background = element_blank()
+  ) +
+  labs(
+    x = expression(alpha),
+    y = 'True-, False- Positive Rate, Precision'
+  ) +
+  facet_grid(. ~ name, scales = 'free')
+ggsave_wrapper('nav_decomposed', width = full_page, height = half_page)
+
+nav_roc %>%
+  group_by(method) %>%
+  filter(alpha <= .05) %>%
+  slice_max(alpha) %>%
+  pivot_longer(c(TP, FP)) %>%
+  mutate(
+    method = factor(method, levels = rev(unique(nav_auroc$method))[c(1:2, 4:3, 6:5)])
+  ) %>%
+  ggplot(aes(method, value, fill = name, label = value)) +
+  geom_col(position = position_dodge2(1, padding = .001, reverse = T)) +
+  geom_text(aes(method, value+25, color = name, label = value), show.legend = F, position = position_dodge2(1, reverse = T), size = 3, hjust = 0) +
+  coord_flip() +
+  theme_classic() +
+  scale_y_continuous(expand = c(0,0), limits = c(0, 3650), breaks = seq(0, 3400, by = 500)) +
+  labs(
+    y = 'Count', x = 'Method', fill = 'Category'
+  ) +
+  scale_color_viridis_d(option = 'H', direction = -1, guide = guide_legend(direction = 'horizontal')) +
+  scale_fill_viridis_d(option = 'H', direction = -1, guide = guide_legend(direction = 'horizontal')) +
+  theme(
+    legend.position = c(0.55, .95),
+    legend.direction = 'horizontal',
+    axis.text.x = element_text(size = 7),
+    legend.background = element_blank(),
+    plot.margin = margin()
+  )
+ggsave_wrapper('bar_alpha_05_nav', width = half_page, height = half_page)
 
 #### Power ####
 load('human_3_columns.RData')
@@ -1050,18 +1232,13 @@ ggsave_wrapper('tpfp_subsets', width = full_page, height = full_page*2/3)
 
 #### Running time ####
 color_data <- set_names(
-  viridisLite::turbo(5, end = .9), c('Yeast', 'UPS', 'Ramus', 'Human', 'Bruder')
+  viridisLite::turbo(6, end = .9), c('Yeast', 'UPS', 'Ramus', 'Human', 'Bruderer', 'Navarro')
 )
-tdd <- time_data_dec_model %>%
+stdd <- time_data_dec_model %>%
   ggplot(aes(workers, time/60)) +
   stat_summary(aes(color = dataset), fun = median, geom = "line", linewidth = .1) +
   geom_boxplot(aes(fill = dataset, group = interaction(workers, dataset)), position = position_dodge(width = 0),
                outlier.shape = '.', size = .1) +
-  # geom_text(
-  #   inherit.aes = F,
-  #   data = summarise(time_data_dec_model, time = compose(round, median)(time/60), .by = c(dataset, workers)),
-  #   aes(workers + .75, time + 1, label = time, color = dataset), size = 1.5
-  # ) +
   scale_x_continuous(breaks = c(seq(2, 10, 2), 16, 32, 64)) +
   theme_classic() +
   theme(
@@ -1080,11 +1257,6 @@ lt <- lgmr_time %>%
   ggplot(aes(p, time)) +
   geom_smooth(linewidth = .3, se = F, method = lm, formula = y ~ x) +
   geom_boxplot(aes(fill = dataset, group = interaction(p, dataset)), outlier.shape = '.', size = .1) +
-  # geom_text(
-  #   inherit.aes = F,
-  #   data = summarise(lgmr_time, time = compose(round, median)(time), .by =  c(p, dataset)),
-  #   aes(p + 325, time - .25, label = time, color = dataset), size = 3
-  # ) +
   theme_classic() +
   theme(
     legend.position = 'none',
@@ -1096,7 +1268,7 @@ lt <- lgmr_time %>%
   labs(
     y = 'Time (min)', x = "Number of Peptides"
   )
-cowplot::plot_grid(tdd, lt, nrow = 2, labels = "AUTO")
+cowplot::plot_grid(stdd, lt, nrow = 2, labels = "AUTO")
 ggsave_wrapper('running_time', width = full_page, height = full_page*1/2)
 
 #### Tables ####

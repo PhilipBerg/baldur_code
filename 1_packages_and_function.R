@@ -9,7 +9,7 @@ if (!("devtools" %in% .packages(all.available = T))) {
 }
 if (!("BiocManager" %in% .packages(all.available = T))) {
   install.packages("BiocManager")
-  BiocManager::install(version = "3.12")
+  BiocManager::install(version = "3.16")
 }
 if (!("baldur" %in% .packages(all.available = T))) {
   devtools::install_github("PhilipBerg/baldur")
@@ -23,6 +23,12 @@ if (!("limma" %in% .packages(all.available = T))) {
   library("limma")
 } else {
   library("limma")
+}
+if (!("MSstats" %in% .packages(all.available = T))) {
+  BiocManager::install("MSstats")
+  library("MSstats")
+} else {
+  library("MSstats")
 }
 
 #### RF Imputation ####
@@ -123,6 +129,28 @@ load_data <- function(data) {
       save(bruderer_prnn, file = 'bruderer_data.RData')
       return(bruderer_prnn)
     }
+  } else if(data == 'navarro') {
+    if (file.exists('navarro_data.RData')) {
+      load('navarro_data.RData')
+      return(navarro_prnn)
+    } else {
+      navarro_prnn <- vroom("ADD-MASSIVE-REANALYSIS-8d06f4e5-display_quant_results-main.tsv") %>%
+        rename_with(~ str_remove(., "_dyn_#"), everything()) %>%
+        MSstats::SpectronauttoMSstatsFormat(use_log_file = FALSE) %>%
+        MSstats::dataProcess(use_log_file = FALSE) %>%
+        MSstats::quantification(use_log_file = FALSE) %>%
+        as_tibble() %>%
+        rename(identifier = Protein) %>%
+        mutate(
+          across(where(is.numeric), ~ na_if(., 0)),
+          across(where(is.numeric), ~ raise_to_power(2, .))
+        ) %>%
+        psrn("identifier") %>%
+        rename_with(~ str_replace_all(., c('A' = 'condi1', "B" = "condi2")), where(is.numeric)) %>%
+        mf_wrapper()
+      save(navarro_prnn, file = 'navarro_data.RData')
+      return(navarro_prnn)
+    }
   } else {
     stop('Dataset does not exist')
   }
@@ -171,6 +199,13 @@ get_bruderer_data <- function() {
   file.remove("bruderer.xlsx", 'tmp.zip')
   unlink('m114.044305.dc1', T)
 }
+get_navarro_data <- function() {
+    if (!file.exists("ADD-MASSIVE-REANALYSIS-8d06f4e5-display_quant_results-main.tsv")) {
+      rlang::abort(
+        cli::format_error("Navarro file missing and needs to be downloaded manually from {.url https://massive.ucsd.edu/ProteoSAFe/reanalysis.jsp?task=8d06f4e54bf341eaace7f7cb2dd338d6}")
+    )
+  }
+}
 get_data <- function() {
   if(!file.exists('diaWorkflowResults_allDilutions.xlsx')) {
     get_human_data()
@@ -181,8 +216,8 @@ get_data <- function() {
   if(!file.exists('bruderer_clean.csv')) {
     get_bruderer_data()
   }
+  get_navarro_data()
 }
-
 #### Performance ####
 calc_tpr_fpr <- function(alpha, hits, p, n, p_val_col){
   p_val <- pull(hits, p_val_col)
@@ -421,7 +456,8 @@ ggsave_wrapper <- function(file_name, width, height = NA, dpi = 1200){
   ggsave(paste0('figures/', file_name, '.pdf'), width = width, height = height, units = 'mm', dpi = dpi)
 }
 set_shape <- function(plt) {
-  plt$layers[[1]]$aes_params$shape <- 20
+  plt$layers[[1]]$aes_params$shape <- "."
+  plt$layers[[2]]$aes_params$size <- .5
   return(plt)
 }
 

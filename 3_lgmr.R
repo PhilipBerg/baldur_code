@@ -35,3 +35,10 @@ samp_bruder <- fit_lgmr(bruder_prnn, 'identifier', simplify = TRUE, cores = 5, w
 tictoc::toc()
 
 bruder_pars <- coef(samp_bruder, TRUE, c('coef', 'aux'))
+
+#### Navarro ####
+tictoc::tic('Navarro')
+samp_navar <- fit_lgmr(navarro_prnn, 'identifier', simplify = TRUE, cores = 5, warmup = 500, iter = 2500)
+tictoc::toc()
+
+navar_pars <- coef(samp_navar, TRUE, c('coef', 'aux'))
